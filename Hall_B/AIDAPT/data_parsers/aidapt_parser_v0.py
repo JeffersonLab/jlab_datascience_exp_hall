@@ -36,7 +36,8 @@ class AIDAPTParserV0(JDSTDataParser):
         print(f'Module Name == {self.module_name}\n')
         print('Module loads data from directories and labels and images for use in a conditional GAN.')
         print('Proper configuration requires a directory for vertex and detector files.')
-        print('All ''ps_\{type\}_\{index\}.csv'' files in given directories are used.')
+        print(
+            'All ''ps_\{type\}_\{index\}.csv'' files in given directories are used.')
 
     def forward(self):
         return self.load_data(
@@ -62,6 +63,8 @@ class AIDAPTParserV0(JDSTDataParser):
         with open(path, 'w') as f:
             yaml.safe_dump(self.config, f)
 
+    # It's possible that it would be better not to allow this as
+    #       it doesn't ensure the config matches the loaded data
     def load_data(self, detector_filepath, vertex_filepath):
         aidapt_parser_v0_log.debug(
             f'Loading detector files from {detector_filepath}')
@@ -79,8 +82,9 @@ class AIDAPTParserV0(JDSTDataParser):
 
         return labels, images[:, :-1]
 
-    #
     def save_data(self, data, path):
+        aidapt_parser_v0_log.warning(
+            'aidapt_parser_v0.save_data() currently does nothing.')
         pass
 
     def load_npy_data(self, datapath, type='vertex'):
