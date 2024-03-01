@@ -2,15 +2,15 @@ from Hall_B.AIDAPT.registration import make, register, list_registered_modules
 
 register(
     id="lab_variables_to_invariants", 
-    entry_point= "Hall_B.AIDAPT.data_parsers.lab_variables_to_invariants:LabVariablesToInvariants"
+    entry_point= "Hall_B.AIDAPT.data_prep.lab_variables_to_invariants:LabVariablesToInvariants"
 )
 
 register(
     id="numpy_standard_scaler", 
-    entry_point= "Hall_B.AIDAPT.data_parsers.numpy_standard_scaler:LabVariablesToInvariants"
+    entry_point= "Hall_B.AIDAPT.data_prep.numpy_standard_scaler:NumpyStandardScaler"
 )
 
 register(
     id="numpy_minmax_scaler", 
-    entry_point= "Hall_B.AIDAPT.data_parsers.numpy_minmax_scaler:NumpyMinMaxScaler"
+    entry_point= "Hall_B.AIDAPT.data_prep.numpy_minmax_scaler:NumpyMinMaxScaler"
 )

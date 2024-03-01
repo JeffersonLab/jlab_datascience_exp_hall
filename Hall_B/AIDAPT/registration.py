@@ -5,7 +5,7 @@ aidapt_log = logging.getLogger("AIDAPT Registry")
 
 def load(name):
     mod_name, attr_name = name.split(":")
-    print(f'Attempting to load {mod_name} with {attr_name}')
+    aidapt_log.info(f'Attempting to load {mod_name} with {attr_name}')
     mod = importlib.import_module(mod_name)
     fn = getattr(mod, attr_name)
     return fn
