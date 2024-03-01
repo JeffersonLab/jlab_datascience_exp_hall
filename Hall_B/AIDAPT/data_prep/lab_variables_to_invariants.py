@@ -3,6 +3,7 @@ import numpy as np
 import logging
 from jlab_datascience_toolkit.core.jdst_data_prep import JDSTDataPrep
 from Hall_B.AIDAPT.utils.math_utils import four_vector_dot, get_alpha
+from Hall_B.AIDAPT.utils.config_utils import verify_config
 import yaml
 import inspect
 
@@ -10,7 +11,8 @@ aidapt_lab2invariants_log = logging.getLogger('AIDAPT Lab2Invariants Logger')
 
 
 class LabVariablesToInvariants(JDSTDataPrep):
-    """Converts a numpy array of size (n,16) and converts it to invariants used by AIDAPT models
+    """Converts a numpy array of size (n,16) and converts it to invariants 
+    used by AIDAPT models
 
     Required intialization arguments: `config: dict`, `name: str`
 
@@ -31,7 +33,8 @@ class LabVariablesToInvariants(JDSTDataPrep):
     load_config(path)
         Loads and verifies a configuration dictionary from <path>
     save_config(path)
-        Saves the current configuration dictionary to a yaml file located at <path>
+        Saves the current configuration dictionary to a yaml file located at
+        <path>
     load(path)
         Currently does nothing
     save(path)
@@ -48,8 +51,8 @@ class LabVariablesToInvariants(JDSTDataPrep):
     def __init__(self, config: dict, name: str = 'AIDAPT Lab2Invariants'):
         self.module_name = name
         self.required_config_keys = []
+        verify_config(config, self.required_config_keys)
         self.config = config
-        self._verify_config()
 
         # Constants used in lab_to_com and lab_to_inv
         if 'MP' not in self.config:
@@ -61,7 +64,7 @@ class LabVariablesToInvariants(JDSTDataPrep):
     def load_config(self, path):
         with open(path, 'r') as f:
             config = yaml.safe_load(f)
-        self._verify_config(config)
+        verify_config(config, self.required_config_keys)
         self.config = config
 
     def save_config(self, path):
@@ -87,20 +90,10 @@ class LabVariablesToInvariants(JDSTDataPrep):
         return output
 
     def reverse(self, data):
-        aidapt_lab2invariants_log.warning(
-            f'{self.module_name} currently cannot be reversed. Returning original data')
+        warn_string = f'{self.module_name} currently cannot be reversed. ' \
+            'Returning original data.'
+        aidapt_lab2invariants_log.warning(warn_string)
         return data
-
-    def _verify_config(self):
-        missing_keys = []
-        for key in self.required_config_keys:
-            if key not in self.config:
-                missing_keys.append(key)
-
-        if missing_keys:
-            error_msg = f'Config is missing the following required keys: {", ".join(missing_keys)}'
-            aidapt_lab2invariants_log.error(error_msg)
-            raise KeyError(error_msg)
 
     def _lab_to_com(self, plab, s):
         output = plab.copy()
