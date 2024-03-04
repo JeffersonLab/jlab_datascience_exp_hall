@@ -35,7 +35,8 @@ class TF_MLP_GAN_V0(JDSTModel):
             5*self.optimizer_lr, self.optimizer_beta1)
 
         self.gen_loss_fn = tf.keras.losses.MeanSquaredError()
-
+        self.disc_loss_fn = tf.keras.losses.MeanSquaredError()
+        self.acc_fn = tf.keras.metrics.Accuracy()
         # X-shape
         # self.input_shape = self.config[f'input_shape']
         self.image_shape = self.config[f'image_shape']
@@ -94,16 +95,26 @@ class TF_MLP_GAN_V0(JDSTModel):
         return super().analysis()
 
     @tf.function
-    def train_generator(self, xbatch, noise, valid):
+    def train_generator(self, labels, noise, valid):
         with tf.GradientTape() as tape:
-            fake_images = self.generator([xbatch, noise])
-            predictions = self.discriminator([xbatch, fake_images])
+            fake_images = self.generator([labels, noise])
+            predictions = self.discriminator([labels, fake_images])
             g_loss = self.gen_loss_fn(valid, predictions)
         grads = tape.gradient(g_loss, self.generator.trainable_weights)
         self.generator_optimizer.apply_gradients(
             zip(grads, self.generator.trainable_weights))
         return g_loss
 
+    @tf.function
+    def train_discriminator(self, labels, images, valid):
+        with tf.GradientTape() as tape:
+            predictions = self.discriminator([labels, images])
+            d_loss = self.disc_loss_fn(valid, predictions)
+        grads = tape.gradient(d_loss, self.discriminator.trainable_weights)
+        self.discriminator_optimizer.apply_gradients(
+            zip(grads, self.discriminator.trainable_weights))
+        acc = self.acc_fn(valid, predictions)
+        return d_loss, acc
 
     # data is [images, labels]
     def train(self, data):
@@ -131,42 +142,17 @@ class TF_MLP_GAN_V0(JDSTModel):
                 [label_batch, noise], verbose=0)
 
             gen_imgs = tf.stop_gradient(gen_imgs)
-            real_xy = [label_batch, img_batch]
-            gen_xy = [label_batch, gen_imgs]
 
-            d_loss_real, acc_real = self.discriminator.train_on_batch(real_xy, valid)
-            d_loss_fake, acc_fake = self.discriminator.train_on_batch(gen_xy, fake)
+            d_loss_real, acc_real = self.train_discriminator(label_batch, img_batch, valid)
+            d_loss_fake, acc_fake = self.train_discriminator(label_batch, gen_imgs, fake)
             d_loss_total = (d_loss_real+d_loss_fake)/2
-
-            # # TODO: Move functionality to a train_discriminator function
-            # with tf.GradientTape() as tape:
-            #     d_pred_real = self.discriminator(real_xy)
-            #     d_loss_real = self.discriminator.compiled_loss(
-            #         valid, d_pred_real)
-            #     d_pred_fake = self.discriminator(gen_xy)
-            #     d_loss_fake = self.discriminator.compiled_loss(
-            #         fake, d_pred_fake)
-            #     # print(d_loss_real,'\n', d_loss_fake)
-            #     d_loss_total = (d_loss_real+d_loss_fake)/2
-            # d_grads = tape.gradient(
-            #     d_loss_total, self.discriminator.trainable_weights)
-            # self.discriminator_optimizer.apply_gradients(
-            #     zip(d_grads, self.discriminator.trainable_weights))
-
-            # TODO: Get two discriminator losses (one for real, one for fake)
-            # TODO: Look at gradients of model to make sure each branch is training (non-zero/non-exploding grads)
-            # self.discriminator.compiled_metrics.update_state(
-            #     valid, d_pred_real)
-            # acc_real = self.discriminator.get_metrics_result()['accuracy']
-            # self.discriminator.compiled_metrics.update_state(
-            #     fake, d_pred_fake)
-            # acc_fake = self.discriminator.get_metrics_result()['accuracy']
 
             g_loss = self.train_generator(label_batch, noise, valid)
             metric_array[epoch, :] = [d_loss_total, d_loss_real,
                                       d_loss_fake, acc_real, acc_fake, g_loss]
 
-            pbar.set_postfix_str(f'Metrics: {metric_array[epoch, :]}')
+            # pbar.set_postfix_str(f'Metrics: {metric_array[epoch, :]}')
+            pbar.set_postfix_str(f'Acc Real/Fake: {acc_real:.3f}/{acc_fake:.3f}, G_loss: {g_loss:.3f}')
 
         return metric_array
 
