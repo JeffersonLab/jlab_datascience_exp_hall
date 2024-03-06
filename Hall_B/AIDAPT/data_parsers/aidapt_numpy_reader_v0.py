@@ -110,18 +110,18 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
 
     # Unimplemented functions below
     def save_data(self, path: str):
-        warn_msg = 'save_data() is currently unimplemented.'
-        aidapt_numpy_reader_log.warning(warn_msg)
+        aidapt_numpy_reader_log.warning(
+            'save_data() is currently unimplemented.')
         pass
 
     def load_config(self, path: str):
-        warn_msg = ('load_config() is currently unimplemented.'
-                    ' Did you mean load()?')
-        aidapt_numpy_reader_log.warn(warn_msg)
+        aidapt_numpy_reader_log.warn(
+            'load_config() is currently unimplemented. '
+            'Did you mean load()?')
         pass
 
     def save_config(self, path: str):
-        warn_msg = ('save_config() is currently unimplemented.'
-                    ' Did you mean save()?')
-        aidapt_numpy_reader_log.warn(warn_msg)
+        aidapt_numpy_reader_log.warn(
+            'save_config() is currently unimplemented.'
+            ' Did you mean save()?')
         pass
