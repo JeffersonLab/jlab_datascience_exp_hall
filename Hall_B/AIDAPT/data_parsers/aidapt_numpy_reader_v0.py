@@ -1,7 +1,6 @@
 import numpy as np
 import logging
 from jlab_datascience_toolkit.core.jdst_data_parser import JDSTDataParser
-from Hall_B.AIDAPT.utils.config_utils import verify_config
 import yaml
 import inspect
 from pathlib import Path
