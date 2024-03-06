@@ -92,7 +92,13 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
         with open(save_dir.joinpath('config.yaml'), 'w') as f:
             yaml.safe_dump(self.config, f)
 
-    def load_data(self):
+    def load_data(self) -> np.ndarray:
+        """ Loads all files listed in `config['filepaths']` and concatenates 
+        them along the `config['axis']` axis
+
+        Returns:
+            np.ndarray: A single array of concatenated data
+        """
         data_list = []
         for file in self.config['filepaths']:
             aidapt_numpy_reader_log.debug(f'Loading {file} ...')
