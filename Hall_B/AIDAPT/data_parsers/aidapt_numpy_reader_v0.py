@@ -1,9 +1,9 @@
+from jlab_datascience_toolkit.core.jdst_data_parser import JDSTDataParser
+from pathlib import Path
 import numpy as np
 import logging
-from jlab_datascience_toolkit.core.jdst_data_parser import JDSTDataParser
 import yaml
 import inspect
-from pathlib import Path
 import os
 
 aidapt_numpy_reader_log = logging.getLogger('AIDAPT Parser V0 Logger')
