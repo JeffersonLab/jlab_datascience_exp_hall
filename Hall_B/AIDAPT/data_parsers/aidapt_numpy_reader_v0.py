@@ -77,8 +77,6 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
 
         self.config.update(loaded_config)
 
-    # Save the entire module state to a folder under <path> called
-    # <self.module_name>
     def save(self, path: str):
         """Save the entire module state to a folder under `path` called 
         `self.module_name`
