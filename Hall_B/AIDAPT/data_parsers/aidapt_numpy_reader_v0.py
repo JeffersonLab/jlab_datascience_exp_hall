@@ -46,21 +46,20 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
 
     """
 
-    def __init__(self, config: dict, name: str = "AIDAPT Numpy Reader V0"):
+    def __init__(self, config: dict = None, name: str = "AIDAPT Numpy Reader V0"):
+        # It is important not to use default mutable arguments in python
+        #   (lists/dictionaries), so we set config to None and update later
         self.module_name = name
 
-        # Required config keys contains only keys that do not have reasonable
-        #   defaults.
-        self.required_config_keys = ['filepaths']
-        verify_config(config, self.required_config_keys)
-        self.config = config
+        # Set default config
+        self.config = dict(filepaths=[], axis=0)
+        # Update configuration with new configuration
+        if config is not None:
+            self.config.update(config)
 
+        # To handle strings and lists of strings, we convert the former here
         if isinstance(self.config['filepaths'], str):
             self.config['filepaths'] = [self.config['filepaths']]
-
-        if not 'axis' in self.config:
-            aidapt_numpy_reader_log.debug('Setting axis to default value: 0')
-            self.config['axis'] = 0
 
     def get_info(self):
         """ Prints the docstring for the AIDAPTNumpyReaderV0 module"""
@@ -100,14 +99,30 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
             aidapt_numpy_reader_log.debug(f'Loading {file} ...')
             data_list.append(np.load(file))
 
+        # Check for empty data and return nothing if empty
+        if not data_list:
+            aidapt_numpy_reader_log.warn(
+                'load_data() returning None. This is probably not what you '
+                'wanted. Ensure that your configuration includes the key '
+                '"filepaths"')
+            return 
+        
         return np.concatenate(data_list, axis=self.config['axis'])
 
     # Unimplemented functions below
     def save_data(self, path: str):
+        warn_msg = 'save_data() is currently unimplemented.'
+        aidapt_numpy_reader_log.warning(warn_msg)
         pass
 
     def load_config(self, path: str):
+        warn_msg = ('load_config() is currently unimplemented.'
+                    ' Did you mean load()?')
+        aidapt_numpy_reader_log.warn(warn_msg)
         pass
 
     def save_config(self, path: str):
+        warn_msg = ('save_config() is currently unimplemented.'
+                    ' Did you mean save()?')
+        aidapt_numpy_reader_log.warn(warn_msg)
         pass
