@@ -105,6 +105,24 @@ class LabVariablesToInvariants(JDSTDataPrep):
         return output
 
     def _lab_to_inv(self, data):
+        """ Take lab data and transform to physical invariants
+
+        Args:
+            data (np.ndarray): Input data (either vertex or detector)
+
+        Returns: 
+            (np.ndarray): Data array containing:
+
+                sppim: square of (recoil proton + pi-)
+                spipm: square of (pi+ + pi-)
+                tpip:  square of (photon - pi+)
+                alpha: ???
+                s:     square of (photon + target proton)
+                
+                phi:   azimuth of pi+ (value not used, so removed)
+                MX:    Missing mass of the pi- (value not used, so removed)
+        """
+
         N = data.shape[0]
         nu = data[:, 1]
 
