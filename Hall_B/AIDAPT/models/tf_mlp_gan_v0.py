@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-from tqdm.auto import tqdm
 from jlab_datascience_toolkit.core.jdst_model import JDSTModel
 from Hall_B.AIDAPT.utils.config_utils import verify_config
 import matplotlib.pyplot as plt
@@ -110,12 +109,10 @@ class TF_MLP_GAN_V0(JDSTModel):
         self.acc_fn = tf.keras.metrics.Accuracy()
 
         self.discriminator = self.build_discriminator()
-        self.discriminator.summary()
         self.discriminator.compile(
             loss='mse', optimizer=self.discriminator_optimizer, metrics=['accuracy'])
 
         self.generator = self.build_generator()
-        self.generator.summary()
         self.generator.compile(loss='mse', optimizer=self.generator_optimizer)
 
     def set_model_variables(self):
@@ -170,25 +167,28 @@ class TF_MLP_GAN_V0(JDSTModel):
         plt.legend()
         plt.show() 
 
-    # data is [images, labels]
     def train(self, data):
         images, labels = data
-        batch_size = self.batch_size
         epochs = self.epochs
+        metric_names = ['d_loss_total', 'd_loss_real', 'd_loss_fake', 'acc_real', 'acc_fake', 'g_loss']
 
-        pbar = tqdm(range(epochs))
-        # d_loss (total, real, fake), #accuracy (real, fake), and #g_loss
-        metric_array = tf.zeros((epochs, 6))
+        callbacks = tf.keras.callbacks.CallbackList(
+            add_progbar=True, epochs=1, steps=epochs, 
+            verbose=1, stateful_metrics=metric_names)
 
-        for epoch in pbar:
+        metric_array = np.zeros((epochs, 6))
+        callbacks.on_train_begin()
+        callbacks.on_epoch_begin(0)
+        for epoch in range(epochs):
+            callbacks.on_train_batch_begin(epoch)
             metrics = self.train_step(images, labels)
-            metric_array[epoch, :] = metrics
+            callbacks.on_train_batch_end(epoch, metrics['history'])
+            metric_array[epoch, :] = list(metrics['history'].values())
 
-            pbar.set_postfix_str(
-                f'Acc Real/Fake: {metrics[3]:.3f}/{metrics[4]:.3f}, G_loss: {metrics[5]:.3f}')
+        callbacks.on_epoch_end(0, {})
+        callbacks.on_train_end({})
 
         self.history = {}
-        metric_names = ['d_loss_total', 'd_loss_real', 'd_loss_fake', 'acc_real', 'acc_fake', 'g_loss']
         for metric, name in zip(metric_array.T, metric_names):
             self.history[name] = metric
         return self.history
@@ -252,7 +252,11 @@ class TF_MLP_GAN_V0(JDSTModel):
 
         g_loss = self.train_generator(label_batch, noise, valid)
 
-        return [d_loss_total, d_loss_real, d_loss_fake, acc_real, acc_fake, g_loss]
+        metrics = [d_loss_total, d_loss_real, d_loss_fake, acc_real, acc_fake, g_loss]
+        metric_names = ['d_loss_total', 'd_loss_real', 'd_loss_fake', 'acc_real', 'acc_fake', 'g_loss']
+        history = {'history': {name: metric for name, metric in zip(metric_names, metrics)}}
+        return history
+
 
     @tf.function
     def train_generator(self, labels, noise, valid):
