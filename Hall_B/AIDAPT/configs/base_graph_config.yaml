@@ -1,0 +1,114 @@
+config:
+  d_scaler:
+    feature_range: &id001
+    - -1
+    - 1
+  detector_parser:
+    filepaths:
+    - ./scratch/data/ps_detector/ps_detector_0.npy
+    - ./scratch/data/ps_detector/ps_detector_1.npy
+    - ./scratch/data/ps_detector/ps_detector_2.npy
+    - ./scratch/data/ps_detector/ps_detector_3.npy
+  lab2inv: {}
+  model:
+    batch_size: 512
+    discriminator_layers:
+    - - Dense
+      - units: 256
+    - - LeakyReLU
+      - alpha: 0.2
+    - - Dense
+      - units: 128
+    - - LeakyReLU
+      - alpha: 0.2
+    - - Dense
+      - units: 64
+    - - LeakyReLU
+      - alpha: 0.2
+    discriminator_optimizer:
+    - Adam
+    - beta_1: 0.5
+      learning_rate: 1.0e-05
+    epochs: 10
+    generator_layers:
+    - - Dense
+      - units: 64
+    - - LeakyReLU
+      - alpha: 0.2
+    - - BatchNormalization
+      - momentum: 0.8
+    - - Dense
+      - units: 128
+    - - LeakyReLU
+      - alpha: 0.2
+    - - BatchNormalization
+      - momentum: 0.8
+    - - Dense
+      - units: 256
+    - - LeakyReLU
+      - alpha: 0.2
+    - - BatchNormalization
+      - momentum: 0.8
+    generator_optimizer:
+    - Adam
+    - beta_1: 0.5
+      learning_rate: 5.0e-05
+    image_shape: 4
+    label_shape: 5
+    latent_dim: 100
+  v_scaler:
+    feature_range: *id001
+  vertex_parser:
+    filepaths:
+    - ./scratch/data/ps_vertex/ps_vertex_0.npy
+    - ./scratch/data/ps_vertex/ps_vertex_1.npy
+    - ./scratch/data/ps_vertex/ps_vertex_2.npy
+    - ./scratch/data/ps_vertex/ps_vertex_3.npy
+graph:
+- - null
+  - vertex_parser.load_data
+  - v_data
+- - null
+  - detector_parser.load_data
+  - d_data
+- - v_data
+  - lab2inv.run
+  - v_invariants
+- - d_data
+  - lab2inv.run
+  - d_invariants
+- - v_invariants
+  - v_scaler.train
+  - null
+- - d_invariants
+  - d_scaler.train
+  - null
+- - v_invariants
+  - v_scaler.run
+  - v_scaled
+- - d_invariants
+  - d_scaler.run
+  - d_scaled
+- - - d_scaled
+    - v_scaled
+  - combine
+  - dv_list
+- - dv_list
+  - model.train
+  - metrics
+- - null
+  - model.analysis
+  - null
+- - v_scaled
+  - model.predict
+  - d_preds_scaled
+- - d_preds_scaled
+  - d_scaler.reverse
+  - d_preds
+modules:
+  d_scaler: numpy_minmax_scaler
+  detector_parser: aidapt_numpy_reader_v0
+  lab2inv: lab_variables_to_invariants
+  model: tf_mlp_gan_v0
+  v_scaler: numpy_minmax_scaler
+  vertex_parser: aidapt_numpy_reader_v0
