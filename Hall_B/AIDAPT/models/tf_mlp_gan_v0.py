@@ -106,7 +106,7 @@ class TF_MLP_GAN_V0(JDSTModel):
         #TODO: Make this configurable in the config
         self.gen_loss_fn = tf.keras.losses.MeanSquaredError()
         self.disc_loss_fn = tf.keras.losses.MeanSquaredError()
-        self.acc_fn = tf.keras.metrics.Accuracy()
+        self.acc_fn = tf.keras.metrics.binary_accuracy
 
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(
@@ -230,7 +230,7 @@ class TF_MLP_GAN_V0(JDSTModel):
         batch_size = self.batch_size
 
         noise = self.rng.normal((batch_size, 1), 0, 0.1)
-        valid = tf.ones((batch_size, 1)) + noise
+        valid = tf.ones((batch_size, 1))
         fake = tf.zeros((batch_size, 1))
         idx = np.random.randint(0, images.shape[0], batch_size)
         img_batch, label_batch = images[idx], labels[idx]
@@ -277,5 +277,6 @@ class TF_MLP_GAN_V0(JDSTModel):
         grads = tape.gradient(d_loss, self.discriminator.trainable_weights)
         self.discriminator_optimizer.apply_gradients(
             zip(grads, self.discriminator.trainable_weights))
-        acc = self.acc_fn(valid, predictions)
+        
+        acc = tf.reduce_mean(self.acc_fn(valid, predictions))
         return d_loss, acc
