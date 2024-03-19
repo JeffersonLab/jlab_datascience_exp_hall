@@ -94,7 +94,7 @@ class PunziDataPrep(JDSTDataPrep):
         print("i) Full path to .yaml configuration file ") 
         print("ii) Optional: User configuration, i.e. a python dict with additonal / alternative settings")
         print("What this module does:")
-        
+        print("i) Take an existing pandas data frame and add physics observables, based on the provided background reactions and luminosities")
         print("***   Info: PunziDataPrep   ***")
         print("  ")
     #*********************************************
