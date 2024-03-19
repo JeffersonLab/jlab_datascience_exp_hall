@@ -1,0 +1,8 @@
+feature_names: ['mu_ptmin', 'mu_plmin', 'pt2', 'pt_mumu', 'zp_ptmin', 'zp_ptmax', 'zp_plmin', 'zp_plmax', 'pt_thrust_mum', 'pt_thrust_mup', 'cosTheta_rec_cm', 'vtx_cl', 'extraE', 'mm_E', 'Dmass', 'Dmass_g']
+target_names: ['labels']
+target_luminosity: 977
+bkg_decay_branches: ['taupair', 'mumu', 'eemumu']
+luminosity_per_branch: [6269.69, 6305.44, 5107.19]   
+luminosity_factor': 1.0
+n_mass_sigma: 2
+mass_range_params: [4001, 4301, 200]
