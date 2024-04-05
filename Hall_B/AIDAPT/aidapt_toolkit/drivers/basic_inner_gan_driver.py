@@ -1,6 +1,6 @@
-import Hall_B.AIDAPT.data_parsers
-import Hall_B.AIDAPT.data_prep
-import Hall_B.AIDAPT.models
+import aidapt_toolkit.data_parsers
+import aidapt_toolkit.data_prep
+import aidapt_toolkit.models
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -11,12 +11,12 @@ import yaml
 
 
 def run(config):
-    vertex_parser = Hall_B.AIDAPT.data_parsers.make('aidapt_numpy_reader_v0', config=config['vertex_parser'], name='vertex_parser')
-    detector_parser = Hall_B.AIDAPT.data_parsers.make('aidapt_numpy_reader_v0', config=config['detector_parser'], name='detector_parser')
-    lab2inv_prep = Hall_B.AIDAPT.data_prep.make('lab_variables_to_invariants', config=config['lab2inv'])
-    d_scaler = Hall_B.AIDAPT.data_prep.make('numpy_minmax_scaler', config=config['d_scaler'], name='detector_scaler')
-    v_scaler = Hall_B.AIDAPT.data_prep.make('numpy_minmax_scaler', config=config['v_scaler'], name='vertex_scaler')
-    model = Hall_B.AIDAPT.models.make('tf_mlp_gan_v0', config=config['model'], name='mlp_gan_model')
+    vertex_parser = aidapt_toolkit.data_parsers.make('aidapt_numpy_reader_v0', config=config['vertex_parser'], name='vertex_parser')
+    detector_parser = aidapt_toolkit.data_parsers.make('aidapt_numpy_reader_v0', config=config['detector_parser'], name='detector_parser')
+    lab2inv_prep = aidapt_toolkit.data_prep.make('lab_variables_to_invariants', config=config['lab2inv'])
+    d_scaler = aidapt_toolkit.data_prep.make('numpy_minmax_scaler', config=config['d_scaler'], name='detector_scaler')
+    v_scaler = aidapt_toolkit.data_prep.make('numpy_minmax_scaler', config=config['v_scaler'], name='vertex_scaler')
+    model = aidapt_toolkit.models.make('tf_mlp_gan_v0', config=config['model'], name='mlp_gan_model')
 
     v_data = vertex_parser.load_data()
     d_data = detector_parser.load_data()

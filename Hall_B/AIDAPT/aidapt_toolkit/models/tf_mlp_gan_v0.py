@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from jlab_datascience_toolkit.core.jdst_model import JDSTModel
-from Hall_B.AIDAPT.utils.config_utils import verify_config
 import matplotlib.pyplot as plt
 import inspect
 import yaml

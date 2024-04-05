@@ -1,5 +1,5 @@
-from Hall_B.AIDAPT.models.tf_mlp_gan_v0 import TF_MLP_GAN_V0
-from Hall_B.AIDAPT.registration import make
+from aidapt_toolkit.models.tf_mlp_gan_v0 import TF_MLP_GAN_V0
+from aidapt_toolkit.registration import make
 import tensorflow as tf
 import numpy as np
 

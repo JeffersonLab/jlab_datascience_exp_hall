@@ -1,5 +1,5 @@
 import os
-from Hall_B.AIDAPT.utils.graph_driver_utils import GraphRuntime
+from aidapt_toolkit.utils.graph_driver_utils import GraphRuntime
 print(os.getcwd())
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
@@ -10,7 +10,7 @@ modules = {
     'lab2inv': 'lab_variables_to_invariants',
     'v_scaler': 'numpy_minmax_scaler',
     'd_scaler': 'numpy_minmax_scaler',
-    'model': 'tf_mlp_gan_v0'
+    'model': 'tf_cgan_v0'
 }
 
 ### Graph Example ###
@@ -52,35 +52,34 @@ config = {
     'v_scaler': {'feature_range': (-1,1)},
     'd_scaler': {'feature_range': (-1,1)},
     'model': {
-        'generator_optimizer': ('Adam', {'learing_rate': 5e-5, 'beta_1': 0.5}),
-        'discriminator_optimizer': ('Adam', {'learing_rate': 1e-5, 'beta_1': 0.5}),
+        'generator_optimizer': ('Adam', {'learning_rate': 5e-5, 'beta_1': 0.5}),
+        'discriminator_optimizer': ('Adam', {'learning_rate': 1e-5, 'beta_1': 0.5}),
         'latent_dim': 100,
         'label_shape': 5,
         'image_shape': 5,
         'generator_layers': [
             ('Dense', {'units': 64}),
-            ('LeakyReLU', {'alpha': 0.2}),
+            ('LeakyReLU', {'negative_slope': 0.2}),
             ('BatchNormalization', {'momentum': 0.8}),
             ('Dense', {'units': 128}),
-            ('LeakyReLU', {'alpha': 0.2}),
+            ('LeakyReLU', {'negative_slope': 0.2}),
             ('BatchNormalization', {'momentum': 0.8}),
             ('Dense', {'units': 256}),
-            ('LeakyReLU', {'alpha': 0.2}),
+            ('LeakyReLU', {'negative_slope': 0.2}),
             ('BatchNormalization', {'momentum': 0.8})],
         'discriminator_layers': [
             ('Dense', {'units': 256}),
-            ('LeakyReLU', {'alpha': 0.2}),
+            ('LeakyReLU', {'negative_slope': 0.2}),
             ('Dense', {'units': 128}),
-            ('LeakyReLU', {'alpha': 0.2}),
+            ('LeakyReLU', {'negative_slope': 0.2}),
             ('Dense', {'units': 64}),
-            ('LeakyReLU', {'alpha': 0.2})],
-        'epochs': 10,
-        'batch_size': 512,
+            ('LeakyReLU', {'negative_slope': 0.2})],
+        'epochs': 4,
+        'batch_size': 4096,
     },
 }
 
 
 
 gr = GraphRuntime()
-
 gr.run_graph(graph, modules, config)

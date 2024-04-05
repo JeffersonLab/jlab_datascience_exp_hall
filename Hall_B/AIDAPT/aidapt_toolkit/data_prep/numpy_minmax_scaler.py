@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from jlab_datascience_toolkit.core.jdst_data_prep import JDSTDataPrep
-from Hall_B.AIDAPT.utils.config_utils import verify_config
+from aidapt_toolkit.utils.config_utils import verify_config
 import inspect
 import yaml
 

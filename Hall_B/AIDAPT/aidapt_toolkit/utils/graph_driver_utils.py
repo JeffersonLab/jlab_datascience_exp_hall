@@ -1,8 +1,8 @@
 from typing import NamedTuple, Union, Iterable
-from Hall_B.AIDAPT.registration import make 
-import Hall_B.AIDAPT.data_parsers
-import Hall_B.AIDAPT.data_prep
-import Hall_B.AIDAPT.models
+from aidapt_toolkit.registration import make 
+import aidapt_toolkit.data_parsers
+import aidapt_toolkit.data_prep
+import aidapt_toolkit.models
     
 class GraphRuntime():
     class Edge(NamedTuple):
