@@ -16,7 +16,7 @@ def run(config):
     lab2inv_prep = aidapt_toolkit.data_prep.make('lab_variables_to_invariants', config=config['lab2inv'])
     d_scaler = aidapt_toolkit.data_prep.make('numpy_minmax_scaler', config=config['d_scaler'], name='detector_scaler')
     v_scaler = aidapt_toolkit.data_prep.make('numpy_minmax_scaler', config=config['v_scaler'], name='vertex_scaler')
-    model = aidapt_toolkit.models.make('tf_mlp_gan_v0', config=config['model'], name='mlp_gan_model')
+    model = aidapt_toolkit.models.make('tf_cgan_v0', config=config['model'], name='mlp_gan_model')
 
     v_data = vertex_parser.load_data()
     d_data = detector_parser.load_data()

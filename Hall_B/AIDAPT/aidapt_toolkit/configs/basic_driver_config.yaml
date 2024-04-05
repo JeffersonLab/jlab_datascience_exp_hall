@@ -16,37 +16,37 @@ config:
     - - Dense
       - units: 256
     - - LeakyReLU
-      - alpha: 0.2
+      - negative_slope: 0.2
     - - Dense
       - units: 128
     - - LeakyReLU
-      - alpha: 0.2
+      - negative_slope: 0.2
     - - Dense
       - units: 64
     - - LeakyReLU
-      - alpha: 0.2
+      - negative_slope: 0.2
     discriminator_optimizer:
     - Adam
     - beta_1: 0.5
       learning_rate: 1.0e-05
-    epochs: 500
+    epochs: 5
     generator_layers:
     - - Dense
       - units: 64
     - - LeakyReLU
-      - alpha: 0.2
+      - negative_slope: 0.2
     - - BatchNormalization
       - momentum: 0.8
     - - Dense
       - units: 128
     - - LeakyReLU
-      - alpha: 0.2
+      - negative_slope: 0.2
     - - BatchNormalization
       - momentum: 0.8
     - - Dense
       - units: 256
     - - LeakyReLU
-      - alpha: 0.2
+      - negative_slope: 0.2
     - - BatchNormalization
       - momentum: 0.8
     generator_optimizer:
