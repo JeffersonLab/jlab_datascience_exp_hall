@@ -72,7 +72,8 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
             path (str): Path to folder containing a `self.module_name` folder.
         """
         base_path = Path(path)
-        save_dir = base_path.joinpath(self.module_name)
+        save_dir = base_path
+        # save_dir = base_path.joinpath(self.module_name)
         with open(save_dir.joinpath('config.yaml'), 'r') as f:
             loaded_config = yaml.safe_load(f)
 
@@ -86,7 +87,8 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
             path (str): Location to save the module folder
         """
         base_path = Path(path)
-        save_dir = base_path.joinpath(self.module_name)
+        save_dir = base_path
+        # save_dir = base_path.joinpath(self.module_name)
         os.makedirs(save_dir)
         with open(save_dir.joinpath('config.yaml'), 'w') as f:
             yaml.safe_dump(self.config, f)

@@ -71,11 +71,11 @@ class LabVariablesToInvariants(JDSTDataPrep):
         with open(path, 'w') as f:
             yaml.safe_dump(self.config, f)
 
-    def load(self):
+    def load(self, path):
         aidapt_lab2invariants_log.debug('Nothing to load...')
         pass
 
-    def save(self):
+    def save(self, path):
         aidapt_lab2invariants_log.debug('Nothing to save...')
         pass
 

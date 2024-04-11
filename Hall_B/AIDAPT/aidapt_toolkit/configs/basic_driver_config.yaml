@@ -29,7 +29,7 @@ config:
     - Adam
     - beta_1: 0.5
       learning_rate: 1.0e-05
-    epochs: 5
+    epochs: 2
     generator_layers:
     - - Dense
       - units: 64
@@ -64,3 +64,5 @@ config:
     - ./scratch/data/ps_vertex/ps_vertex_1.npy
     - ./scratch/data/ps_vertex/ps_vertex_2.npy
     - ./scratch/data/ps_vertex/ps_vertex_3.npy
+  driver:
+    save_path: ./scratch/runs/temp/

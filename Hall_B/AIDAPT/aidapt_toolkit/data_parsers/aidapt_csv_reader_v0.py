@@ -79,7 +79,8 @@ class AIDAPTCSVReaderV0(JDSTDataParser):
             path (str): Path to folder containing module files.
         """
         base_path = Path(path)
-        save_dir = base_path.joinpath(self.module_name)
+        save_dir = base_path
+        # save_dir = base_path.joinpath(self.module_name)
         with open(save_dir.joinpath('config.yaml'), 'r') as f:
             loaded_config = yaml.safe_load(f)
 

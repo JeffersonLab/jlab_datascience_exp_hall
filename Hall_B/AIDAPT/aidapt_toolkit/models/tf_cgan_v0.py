@@ -265,8 +265,8 @@ class TF_CGAN(JDSTModel):
         self.discriminator = self.build_discriminator()
 
         # Load network weights
-        self.generator.load_weights(os.path.join(filepath, 'generator_weights'))
-        self.discriminator.load_weights(os.path.join(filepath, 'discriminator_weights'))
+        self.generator.load_weights(os.path.join(filepath, 'generator.weights.h5'))
+        self.discriminator.load_weights(os.path.join(filepath, 'discriminator.weights.h5'))
 
         self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
                             noise_dim=self.config['latent_dim'], 
@@ -277,13 +277,14 @@ class TF_CGAN(JDSTModel):
         # TODO load optimizers specified in config...
 
     def save(self, filepath):
-        self.generator.save_weights(os.path.join(filepath, 'generator_weights'))
-        self.discriminator.save_weights(os.path.join(filepath, 'discriminator_weights'))
+        os.makedirs(filepath)
+        self.generator.save_weights(os.path.join(filepath, 'generator.weights.h5'))
+        self.discriminator.save_weights(os.path.join(filepath, 'discriminator.weights.h5'))
         with open(os.path.join(filepath, 'config.yaml'), 'w') as f:
             yaml.safe_dump(self.config, f)
         # TODO: Save state of optimizers
 
-    def analysis(self):
+    def analysis(self, path=None):
         # Plot training history
         hist = self.cgan.batch_history.history
 
@@ -294,7 +295,10 @@ class TF_CGAN(JDSTModel):
         plt.ylabel('Loss')
         plt.xlabel('Epochs')
         plt.legend()
-        plt.show() 
+        if path is None:
+            plt.show()
+        else:
+            plt.savefig(os.path.join(path, 'model_history.png'))
 
     def train(self, data):
         images, labels = data

@@ -57,11 +57,12 @@ class NumpyStandardScaler(JDSTDataPrep):
         pass
 
     def save(self, path):
-        fullpath = os.path.join(path, f'{self.module_name}_params.npz')
+        os.makedirs(path)
+        fullpath = os.path.join(path, f'standard_scaler_params.npz')
         np.savez(fullpath, mean=self.mean, std=self.std)
 
     def load(self, path):
-        fullpath = os.path.join(path, f'{self.module_name}_params.npz')
+        fullpath = os.path.join(path, f'standard_scaler_params.npz')
         module_params = np.load(fullpath)
         self.mean = module_params['mean']
         self.std = module_params['std']

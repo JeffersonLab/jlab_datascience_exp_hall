@@ -77,12 +77,13 @@ class NumpyMinMaxScaler(JDSTDataPrep):
         pass
 
     def save(self, path):
-        fullpath = os.path.join(path, f'{self.module_name}_params.npz')
+        os.makedirs(path)
+        fullpath = os.path.join(path, f'minmax_scaler_params.npz')
         np.savez(fullpath, data_min=self.data_min,
                  data_max=self.data_max, data_range=self.data_range)
 
     def load(self, path):
-        fullpath = os.path.join(path, f'{self.module_name}_params.npz')
+        fullpath = os.path.join(path, f'minmax_scaler_params.npz')
         arg_dict = np.load(fullpath)
         self.data_min = arg_dict['data_min']
         self.data_max = arg_dict['data_max']
