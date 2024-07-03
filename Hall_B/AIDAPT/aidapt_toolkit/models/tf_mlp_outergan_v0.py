@@ -1,14 +1,14 @@
-from aidapt_toolkit.models.tf_mlp_gan_v0 import TF_MLP_GAN_V0
+from aidapt_toolkit.models.tf_cgan_v0 import TF_CGAN
 from aidapt_toolkit.registration import make
 import tensorflow as tf
 import numpy as np
 
-class TF_MLP_OuterGAN_V0(TF_MLP_GAN_V0):
+class TF_OuterGAN_V0(TF_CGAN):
     """ Model for the OuterGAN. 
 
     
     """
-    def __init__(self, config: dict = None, name: str = 'unfolding_model_v1') -> None:
+    def __init__(self, config: dict = None, name: str = 'outergan_v0') -> None:
         super().__init__(config, name)
 
         self.unfolding_path = config['unfolding_path']
@@ -16,7 +16,9 @@ class TF_MLP_OuterGAN_V0(TF_MLP_GAN_V0):
 
         self.unfolding_model = make(self.unfolding_id)
         self.unfolding_model.load(self.unfolding_path)
-        self.unfolding_model.model.trainable = False
+
+        # This assumes InnerGAN is a TF_CGAN...
+        self.unfolding_model.cgan.trainable = False
 
     def train_step(self, images, labels):
         batch_size = self.batch_size
