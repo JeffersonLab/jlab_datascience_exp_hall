@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from torchmetrics import MeanMetric, Accuracy
 import logging
+import os
 
 class PunziNetTrainer(object):
     '''
@@ -12,7 +13,7 @@ class PunziNetTrainer(object):
     
     # Initialize
     #********************
-    def __init__(self,bce_loss_function_strig,punzi_loss_a,punzi_loss_b,punzi_loss_scale,n_mass_hypotheses,bce_device,punzi_device):
+    def __init__(self,bce_loss_function_strig,punzi_loss_a,punzi_loss_b,punzi_loss_scale,n_mass_hypotheses,snapshot_folder,store_scripted_model,bce_device,punzi_device):
         # Get the bce loss function:
         self.bce_loss_function = TorchLossFunctions(bce_loss_function_strig)
 
@@ -22,6 +23,12 @@ class PunziNetTrainer(object):
         # Register the devices for each training (GPU vs. CPU)
         self.bce_device = bce_device
         self.punzi_device = punzi_device
+
+        # Allow checkpoinint, i.e. store the model every i-th epoch.
+        # Thus we need to decide if we want to store the entire model or just its weights:
+        self.store_scripted_model = store_scripted_model
+        self.snapshot_folder = snapshot_folder
+        os.makedirs(self.snapshot_folder,exist_ok=True)
 
         # Define performance trackers:
 
@@ -146,10 +153,24 @@ class PunziNetTrainer(object):
        # Record the accuracy:
        self.test_punzi_acc_tracker.update(model_predictions,y)
     #********************
+    
+    # Store the model at a given epoch, i.e. take a snapshot:
+    #********************
+    def take_model_snapshot(self,model,path,current_epoch,n_epochs):
+        epoch_str = str(current_epoch) + 'epochs'
+        epoch_str = epoch_str.zfill(6 + len(str(n_epochs)))
+        
+        # Store the entire model using torch script, if provided by the user:
+        if self.store_scripted_model:
+           scripted_model = torch.jit.script(model)
+           scripted_model.save(path+"_"+epoch_str+".pt")
+        else:
+           torch.save(model.state_dict(),path+"_weights_"+epoch_str+".pt")
+    #********************
 
     # Now put it all together:
     #********************
-    def run(self,model,bce_optimizer,punzi_optimizer,bce_lr_scheduler,punzi_lr_scheduler,x,y,w,s,x_test,y_test,w_test,s_test,n_epochs_bce,batch_size_bce,mon_epochs_bce,read_epochs_bce,n_epochs_punzi,batch_size_punzi,mon_epochs_punzi,read_epochs_punzi,n_gen_signal,target_luminosity):
+    def run(self,model,bce_optimizer,punzi_optimizer,bce_lr_scheduler,punzi_lr_scheduler,x,y,w,s,x_test,y_test,w_test,s_test,n_epochs_bce,batch_size_bce,mon_epochs_bce,read_epochs_bce,snapshot_epochs_bce,n_epochs_punzi,batch_size_punzi,mon_epochs_punzi,read_epochs_punzi,snapshot_epochs_punzi,n_gen_signal,target_luminosity):
         # Collect tracker results:
         bce_training_loss = []
         bce_testing_loss = []
@@ -208,6 +229,10 @@ class PunziNetTrainer(object):
                  if len(bce_testing_loss) > 0 and len(bce_testing_acc) > 0:
                     print(f"BCE Testing Loss: {round(bce_testing_loss[-1],4)}")
                     print(f"BCE Testing Acc.: {round(bce_testing_acc[-1],4)}")
+
+              # Take a snapshot of the model during training:
+              if bce_epoch % snapshot_epochs_bce == 0:
+                 self.take_model_snapshot(model,self.snapshot_folder+"/bce_model_snapshot",bce_epoch,n_epochs_bce)
            #++++++++++++++++++++++++++++++
            print(" ")
         else:
@@ -256,6 +281,10 @@ class PunziNetTrainer(object):
                  if len(punzi_testing_loss) > 0 and len(punzi_testing_acc) > 0:
                     print(f"Punzi Testing Loss: {round(punzi_testing_loss[-1],4)}")
                     print(f"Punzi Testing Acc.: {round(punzi_testing_acc[-1],4)}")
+
+              # Take a snapshot of the model during training:
+              if punzi_epoch % snapshot_epochs_punzi == 0:
+                 self.take_model_snapshot(model,self.snapshot_folder+"/punzi_model_snapshot",punzi_epoch,n_epochs_punzi)
            #++++++++++++++++++++++++++++++
            print(" ")
         else:
