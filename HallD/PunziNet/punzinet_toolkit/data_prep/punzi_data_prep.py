@@ -59,7 +59,10 @@ class PunziDataPrep(JDSTDataPrep):
         self.n_decays = len(self.bkg_decay_branches)
 
         assert self.mass_range_params is not None, logging.error(f">>> {self.module_name}: No mass range parameters have been provided. Please provide a list with: [mass_start, mass_end,n_mass_points]. <<<")
-
+        
+        # Store the updated dataframe somewhere, in case we do not want to repeat the operations done here:
+        self.df_store_loc = self.config['df_store_loc']
+        self.df_store_format = self.config['df_store_format']
     #*********************************************
         
     # Handle configurations:
@@ -93,6 +96,16 @@ class PunziDataPrep(JDSTDataPrep):
     #*********************************************
     def get_info(self):
         print(inspect.getdoc(self))
+    #*********************************************
+    
+    # Check the input data type:
+    #*********************************************
+    def check_input_data_type(self,data):
+        if type(data) == pd.DataFrame:
+            return True
+        else:
+            logging.error(f">>> {self.module_name}: The data type {type(data)} is not a pandas dataframe. Please correct. <<<")
+            return False
     #*********************************************
         
     # Define the run method:
@@ -171,12 +184,13 @@ class PunziDataPrep(JDSTDataPrep):
 
     # Now put it all together:
     def run(self,dataFrame):
-        # Add the weights:
-        self.add_weights_to_df(dataFrame)
-        # And add mass ranges:
-        self.add_mass_ranges_to_df(dataFrame)
+        if self.check_input_data_type(dataFrame) == True:
+           # Add the weights:
+           self.add_weights_to_df(dataFrame)
+           # And add mass ranges:
+           self.add_mass_ranges_to_df(dataFrame)
 
-        return dataFrame
+           return dataFrame
     #*********************************************
         
     # We can not reverse this operation:
@@ -205,6 +219,12 @@ class PunziDataPrep(JDSTDataPrep):
 
     #-----------------------------
 
-    def save_data(self):
-        return 0
+    def save_data(self,df):
+        if self.df_store_loc != "" and self.df_store_loc is not None:
+            if self.df_store_format.lower() == 'csv':
+                df.to_csv(self.df_store_loc+".csv")
+            if self.df_store_format.lower() == "feather":
+                df.to_feather(self.df_store_loc+".feather")
+            if self.df_store_format.lower() == 'json':
+                df.to_json(self.df_store_loc+".json")
     #*********************************************

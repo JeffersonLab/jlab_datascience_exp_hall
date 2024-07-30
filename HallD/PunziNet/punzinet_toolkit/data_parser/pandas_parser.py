@@ -36,6 +36,15 @@ class PandasParser(JDSTDataParser):
     def get_info(self):
         print(inspect.getdoc(self))
     #*********************************************
+    
+    # Check the input data type:
+    #*********************************************
+    def check_input_data_type(self,data):
+        if type(data) != list:
+            logging.error(f">>> " + self.module_name +f": The provided data {type(data)} is not a list. This module expects a list of file names. <<<")
+            return False
+        return True
+    #*********************************************
         
     # Handle configurations:
     #*********************************************
@@ -86,7 +95,7 @@ class PandasParser(JDSTDataParser):
 
     # Load multiple files which represent the final data:
     def load_data(self):
-        try:
+        if self.check_input_data_type(self.config['data_loc']) == True:
             collected_data = []
             pd_file_format = self.config['file_format']
             #+++++++++++++++++++++
@@ -95,8 +104,6 @@ class PandasParser(JDSTDataParser):
             #+++++++++++++++++++++
 
             return pd.concat(collected_data,axis=self.config['event_axis'])
-        except:
-            logging.exception(">>> " + self.module_name + ": Please check the provided data path which must be a list. <<<")
     #*********************************************
             
     # Save the data:

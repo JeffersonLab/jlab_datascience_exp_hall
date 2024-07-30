@@ -39,8 +39,10 @@ class UTestPunziDataPrep(unittest.TestCase):
         data_parser = parsers.make("PandasParser_v0",path_to_cfg=default_parser_cfg_loc,user_config=user_parser_cfg)
          
         default_prep_cfg_loc = os.path.join(this_file_path,"../punzinet_toolkit/cfg/defaults/punzi_dataprep_cfg.yaml")
+        store_location = os.path.join(this_file_path,"../punzinet_toolkit/sample_data/punzi_test_dataframe")
         user_prep_cfg = {
-            'loc_mass_bin_width':os.path.join(this_file_path,"../punzinet_toolkit/sample_data/belle-zpr-width.txt")
+            'loc_mass_bin_width':os.path.join(this_file_path,"../punzinet_toolkit/sample_data/belle-zpr-width.txt"),
+            'df_store_loc': store_location
         }
 
         data_prep = preps.make("PunziDataPrep_v0",path_to_cfg=default_prep_cfg_loc,user_config=user_prep_cfg)
@@ -67,6 +69,15 @@ class UTestPunziDataPrep(unittest.TestCase):
 
         print("...done!")
         print(" ")
+
+        if store_location is not None and store_location != "":
+            print("Write dataframe to file for future tests...")
+  
+            data_prep.save_data(prep_data)
+
+            print("...done!")
+            print(" ")
+
 
         # Check if the weights are in the 'new' data frame:
         pass_sanity_check = False
