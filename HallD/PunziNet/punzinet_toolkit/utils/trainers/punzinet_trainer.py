@@ -13,16 +13,17 @@ class PunziNetTrainer(object):
     
     # Initialize
     #********************
-    def __init__(self,bce_loss_function_strig,punzi_loss_a,punzi_loss_b,punzi_loss_scale,n_mass_hypotheses,snapshot_folder,store_scripted_model,bce_device,punzi_device):
+    def __init__(self,bce_loss_function_strig,punzi_loss_a,punzi_loss_b,punzi_loss_scale,n_mass_hypotheses,n_gen_signal,target_luminosity,snapshot_folder,store_scripted_model,torch_device):
         # Get the bce loss function:
         self.bce_loss_function = TorchLossFunctions(bce_loss_function_strig)
 
         # Get the punzi loss function (this is a custom loss):
-        self.punzi_loss = PunziNetLoss(n_mass_hypotheses,punzi_loss_a,punzi_loss_b,punzi_loss_scale,punzi_device)
+        self.punzi_loss = PunziNetLoss(n_mass_hypotheses,punzi_loss_a,punzi_loss_b,punzi_loss_scale,torch_device)
+        self.n_gen_signal = n_gen_signal
+        self.target_luminosity = target_luminosity
 
         # Register the devices for each training (GPU vs. CPU)
-        self.bce_device = bce_device
-        self.punzi_device = punzi_device
+        self.torch_device = torch_device
 
         # Allow checkpoinint, i.e. store the model every i-th epoch.
         # Thus we need to decide if we want to store the entire model or just its weights:
@@ -115,14 +116,14 @@ class PunziNetTrainer(object):
     # Punzi Training and Testing:
     #********************
     # Training:
-    def punzi_train_step(self,model,punzi_optimizer,punzi_training_data,n_gen_signal,target_luminosity):
+    def punzi_train_step(self,model,punzi_optimizer,punzi_training_data):
        x,y,w,s = punzi_training_data
        # Reset optimizer:
        punzi_optimizer.zero_grad(set_to_none=True)
        # Get the model predictions:
        model_predictions = torch.squeeze(model.predict(x))
        # Compute punzi loss:
-       punzi_loss = torch.sum(torch.mean(self.punzi_loss.compute(s,model_predictions,w,n_gen_signal,target_luminosity)))
+       punzi_loss = torch.sum(torch.mean(self.punzi_loss.compute(s,model_predictions,w,self.n_gen_signal,self.target_luminosity)))
 
        # Run backpropagaion:
        punzi_loss.backward()
@@ -139,12 +140,12 @@ class PunziNetTrainer(object):
     #-----------------------
 
     # Testing:
-    def punzi_test_step(self,model,punzi_test_data,n_gen_signal,target_luminosity):
+    def punzi_test_step(self,model,punzi_test_data):
        x,y,w,s = punzi_test_data
        # Get the model predictions:
        model_predictions = torch.squeeze(model.predict(x))
        # Compute punzi loss:
-       punzi_loss = torch.sum(torch.mean(self.punzi_loss.compute(s,model_predictions,w,n_gen_signal,target_luminosity)))
+       punzi_loss = torch.sum(torch.mean(self.punzi_loss.compute(s,model_predictions,w,self.n_gen_signal,self.target_luminosity)))
 
         # Register the predictions via the trackers:
 
@@ -170,7 +171,7 @@ class PunziNetTrainer(object):
 
     # Now put it all together:
     #********************
-    def run(self,model,bce_optimizer,punzi_optimizer,bce_lr_scheduler,punzi_lr_scheduler,x,y,w,s,x_test,y_test,w_test,s_test,n_epochs_bce,batch_size_bce,mon_epochs_bce,read_epochs_bce,snapshot_epochs_bce,n_epochs_punzi,batch_size_punzi,mon_epochs_punzi,read_epochs_punzi,snapshot_epochs_punzi,n_gen_signal,target_luminosity):
+    def run(self,model,bce_optimizer,punzi_optimizer,bce_lr_scheduler,punzi_lr_scheduler,x,y,w,s,x_test,y_test,w_test,s_test,n_epochs_bce,batch_size_bce,mon_epochs_bce,read_epochs_bce,snapshot_epochs_bce,n_epochs_punzi,batch_size_punzi,mon_epochs_punzi,read_epochs_punzi,snapshot_epochs_punzi):
         # Collect tracker results:
         bce_training_loss = []
         bce_testing_loss = []
@@ -193,7 +194,7 @@ class PunziNetTrainer(object):
            #++++++++++++++++++++++++++++++
            for bce_epoch in range(1,1+n_epochs_bce):
               # Draw a random batch from data:
-              bce_training_data = self.get_data_batches([x,y,w],batch_size_bce,self.bce_device)
+              bce_training_data = self.get_data_batches([x,y,w],batch_size_bce,self.torch_device)
               # Update model parameters:
               self.bce_train_step(model,bce_optimizer,bce_training_data)
               # Update the learning rate scheduler if existent:
@@ -202,7 +203,7 @@ class PunziNetTrainer(object):
 
               # Test, if test data is available:
               if has_test_data:
-                 bce_test_data = self.get_data_batches([x_test,y_test,w_test],batch_size_bce,self.bce_device)
+                 bce_test_data = self.get_data_batches([x_test,y_test,w_test],batch_size_bce,self.torch_device)
                  self.bce_test_step(model,bce_test_data)
 
               # Read out losses and accuracy:
@@ -245,17 +246,17 @@ class PunziNetTrainer(object):
            #++++++++++++++++++++++++++++++
            for punzi_epoch in range(1,1+n_epochs_punzi):
               # Get training data:
-              punzi_training_data = self.get_data_batches([x,y,w,s],batch_size_punzi,self.punzi_device)
+              punzi_training_data = self.get_data_batches([x,y,w,s],batch_size_punzi,self.torch_device)
               # Update model parameters:
-              self.punzi_train_step(model,punzi_optimizer,punzi_training_data,n_gen_signal,target_luminosity)
+              self.punzi_train_step(model,punzi_optimizer,punzi_training_data)
               # Update punzi learning rate scheduler, if existent:
               if punzi_lr_scheduler is not None:
                  punzi_lr_scheduler.step()
 
               if has_test_data:
-                 punzi_testing_data = self.get_data_batches([x_test,y_test,w_test,s_test],batch_size_punzi,self.punzi_device)
+                 punzi_testing_data = self.get_data_batches([x_test,y_test,w_test,s_test],batch_size_punzi,self.torch_device)
                  # Run a test step:
-                 self.punzi_test_step(model,punzi_testing_data,n_gen_signal,target_luminosity)
+                 self.punzi_test_step(model,punzi_testing_data)
 
               # Record losses and accuracies:
               if punzi_epoch % read_epochs_punzi == 0:

@@ -1,0 +1,50 @@
+# Torch device that we are running on:
+torch_device: "cpu"
+# Store the model:
+model_store_loc: "punzi_training_v0"
+store_scripted_model: True
+# Load the model:
+model_load_loc: ""
+load_scripted_model: False
+# Model architecture:
+n_inputs: -1
+n_outputs: 1
+architecture: [50,50,50]
+activations: ["relu"]*3
+weight_initializers: ["normal"]*3
+bias_initializers: ["normal"]*3
+dropout_percents: [0.0]*3
+branchnorms: [False]*3
+output_activation: "sigmoid"
+output_weight_initializer: "normal"
+output_bias_initializer: "normal"
+# Optimizers and Training:
+# BCE:
+bce_optimizer: "adam"
+bce_learning_rate: 0.0001
+bce_lr_scheduler_mode: "min"
+bce_lr_scheduler_factor: 0.5
+bce_lr_scheduler_patience: 2
+n_epochs_bce: 20
+read_epochs_bce: 1
+mon_epochs_bce: 4
+snapshot_epochs_bce: 4
+batch_size_bce: 128
+# Punzi:
+punzi_optimizer: "adam"
+punzi_learning_rate: 0.0001
+punzi_lr_scheduler_mode: "min"
+punzi_lr_scheduler_factor: 0.5
+punzi_lr_scheduler_patience: 2
+n_epochs_punzi: 20
+read_epochs_punzi: 1
+mon_epochs_punzi: 4
+snapshot_epochs_punzi: 1
+batch_size_punzi: 128
+# Loss objective:
+punzi_loss_constant_a: 3.0
+punzi_loss_constant_b: 1.28155
+punzi_loss_scale: 1.0
+n_mass_hypotheses: 200
+n_gen_signal: 260000
+target_luminosity: 977

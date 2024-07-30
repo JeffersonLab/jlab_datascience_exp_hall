@@ -10,8 +10,8 @@ class PunziNetLoss(object):
 
     # Initialize:
     #*********************
-    def __init__(self,n_mass_hypotheses,a,b,scale,torch_device):
-        self.n_mass_hypothese = n_mass_hypotheses
+    def __init__(self,n_mass_hypotheses,a=3.0,b=1.28155,scale=1.0,torch_device="cpu"):
+        self.n_mass_hypotheses = n_mass_hypotheses
 
         assert self.n_mass_hypotheses >0, logging.error(f">>> PunziLoss: You did not provide a positive number of mass hypotheses: n_mass_hypotheses = {self.n_mass_hypotheses} <<<")
         
