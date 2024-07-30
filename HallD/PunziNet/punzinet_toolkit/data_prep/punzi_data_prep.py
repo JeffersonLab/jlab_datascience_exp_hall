@@ -4,11 +4,15 @@ import numpy as np
 import yaml
 import logging
 import os
+import inspect
 
 class PunziDataPrep(JDSTDataPrep):
 
     '''
-    Data preperation module for the punzi net in Hall D.
+    Data preperation module for the punzi net in Hall D. This module requires a path to a configuration file. Additionally, the user may make changes by providing an additional 
+    configuration to change settings.
+
+    This module ingests an existing data frame and adds observables that are specific to the punzi-analysis to it.
     '''
 
     # Initialize:
@@ -25,8 +29,8 @@ class PunziDataPrep(JDSTDataPrep):
             self.save_config(self.config['store_cfg_loc'])
 
         # Register data frame related settings:
-        self.feature_names = self.config.get('feature_names',None)
-        self.target_names = self.config.get('target_names',None)
+        self.feature_names = self.config['feature_names']
+        self.target_names = self.config['target_names']
 
         # Make sure that feature and target names are actually set:
         assert self.feature_names is not None, logging.error(f">>> {self.module_name}: No feature names provided. Please provide a list of feature names <<<")
@@ -38,16 +42,16 @@ class PunziDataPrep(JDSTDataPrep):
         # Physics info:
 
         # Weights for each bkg. decay mode:
-        self.target_luminosity =  self.config.get('target_luminosity',1000)
-        self.bkg_decay_branches =  self.config.get('bkg_decay_branches',None)
-        self.luminosity_per_branch =  self.config.get('luminosity_per_branch',None)
-        self.luminosity_factor =  self.config.get('luminosity_factor',1.0)
+        self.target_luminosity =  self.config['target_luminosity']
+        self.bkg_decay_branches =  self.config['bkg_decay_branches']
+        self.luminosity_per_branch =  self.config['luminosity_per_branch']
+        self.luminosity_factor =  self.config['luminosity_factor']
 
         # Include mass ranges:
-        self.mass_range_params = self.config.get('mass_range_params',None)
-        self.loc_mass_bin_width = self.config.get('loc_mass_bin_width',"")
-        self.n_mass_sigma = self.config.get('n_mass_sigma',2.0)
-        self.matrix_features = self.config.get('matrix_features',['sig_m_range','gen_mass','range_idx_low','range_idx_high'])
+        self.mass_range_params = self.config['mass_range_params']
+        self.loc_mass_bin_width = self.config['loc_mass_bin_width']
+        self.n_mass_sigma = self.config['n_mass_sigma']
+        self.matrix_features = self.config['matrix_features']
 
         # Sanity checks:
         assert self.bkg_decay_branches is not None, logging.error(f">>> {self.module_name}: No BKG. decay branches have been provided. Please provide a list of decay branches. <<<")
@@ -88,15 +92,7 @@ class PunziDataPrep(JDSTDataPrep):
     # Provide information about this module:
     #*********************************************
     def get_info(self):
-        print("  ")
-        print("***   Info: PunziDataPrep   ***")
-        print("Input(s):")
-        print("i) Full path to .yaml configuration file ") 
-        print("ii) Optional: User configuration, i.e. a python dict with additonal / alternative settings")
-        print("What this module does:")
-        print("i) Take an existing pandas data frame and add physics observables, based on the provided background reactions and luminosities")
-        print("***   Info: PunziDataPrep   ***")
-        print("  ")
+        print(inspect.getdoc(self))
     #*********************************************
         
     # Define the run method:

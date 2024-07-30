@@ -3,6 +3,7 @@ import pandas as pd
 import yaml
 import logging
 import os
+import inspect
 
 class PandasParser(JDSTDataParser):
 
@@ -33,18 +34,7 @@ class PandasParser(JDSTDataParser):
     # Provide information about this module:
     #*********************************************
     def get_info(self):
-        print("  ")
-        print("***   Info: PandasParser   ***")
-        print("Input(s):")
-        print("i) Full path to .yaml configuration file ") 
-        print("ii) Optional: User configuration, i.e. a python dict with additonal / alternative settings")
-        print("What this module does:")
-        print("i) Read in multiple pandas files that are specified in a list of strings")
-        print("ii) Combine single files into one")
-        print("Output(s):")
-        print("i) Single pandas file")
-        print("***   Info: PandasParser   ***")
-        print("  ")
+        print(inspect.getdoc(self))
     #*********************************************
         
     # Handle configurations:

@@ -1,6 +1,7 @@
-import torch
-from torchmetrics import MeanMetric, Accuracy
 from punzinet_toolkit.utils.loss_functions import TorchLossFunctions, PunziNetLoss
+import torch
+import numpy as np
+from torchmetrics import MeanMetric, Accuracy
 import logging
 
 class PunziNetTrainer(object):
@@ -36,20 +37,22 @@ class PunziNetTrainer(object):
         self.test_punzi_acc_tracker = Accuracy(task='binary').to(self.punzi_device)
     #********************
 
-    # Sample batches from a given data tensor:
+    # Sample batches from a given list of data:
+    # This data is a simple numpy array / data frame object and is turned into a torch tensor when the batch is created
+    # This way, we do not overload the GPU memory 
     #********************
-    def get_data_batches(self,data_list,batch_dim):
-        sample_size = data_list[0].size()[0]
+    def get_data_batches(self,data_list,batch_dim,torch_device):
+        sample_size = data_list[0].shape[0]
         idx = None
         if batch_dim <= 0: # --> Use the entire data, but shuffle it:
-          idx = torch.randint(low=0,high=sample_size,size=(sample_size,),device=data_list[0].device)
+          idx = np.random.choice(sample_size,sample_size)
         else:
-          idx = torch.randint(low=0,high=sample_size,size=(batch_dim,),device=data_list[0].device)  
+          idx = np.random.choice(sample_size,batch_dim)
 
         batched_data = []
         #++++++++++++++++
-        for el in data_list:
-            batched_data.append(el[idx].to(el.device))
+        for dat in data_list:
+            batched_data.append(torch.as_tensor(dat[idx],device=torch.float32,device=torch_device))
         #++++++++++++++++
 
         return batched_data 
@@ -58,7 +61,8 @@ class PunziNetTrainer(object):
     # BCE Training and Testing:
     #********************
     # Training:
-    def bce_train_step(self,model,bce_optimizer,x,y,w):
+    def bce_train_step(self,model,bce_optimizer,bce_training_data):
+       x,y,w = bce_training_data
        # Reset the optimizer:
        bce_optimizer.zero_grad(set_to_none=True)
        # Get the model predictions:
@@ -83,7 +87,8 @@ class PunziNetTrainer(object):
     #-----------------------
 
     # Testing:
-    def bce_test_step(self,model,x,y,w):
+    def bce_test_step(self,model,bce_test_data):
+       x,y,w = bce_test_data
        # Get the model predictions:
        model_predictions = torch.squeeze(model.predict(x))
        # Compute the weighted loss:
@@ -103,7 +108,8 @@ class PunziNetTrainer(object):
     # Punzi Training and Testing:
     #********************
     # Training:
-    def punzi_train_step(self,model,punzi_optimizer,x,y,w,s,n_gen_signal,target_luminosity):
+    def punzi_train_step(self,model,punzi_optimizer,punzi_training_data,n_gen_signal,target_luminosity):
+       x,y,w,s = punzi_training_data
        # Reset optimizer:
        punzi_optimizer.zero_grad(set_to_none=True)
        # Get the model predictions:
@@ -126,7 +132,8 @@ class PunziNetTrainer(object):
     #-----------------------
 
     # Testing:
-    def punzi_test_step(self,model,x,y,w,s,n_gen_signal,target_luminosity):
+    def punzi_test_step(self,model,punzi_test_data,n_gen_signal,target_luminosity):
+       x,y,w,s = punzi_test_data
        # Get the model predictions:
        model_predictions = torch.squeeze(model.predict(x))
        # Compute punzi loss:
@@ -153,5 +160,118 @@ class PunziNetTrainer(object):
         punzi_training_acc = []
         punzi_testing_acc = []
 
+        has_test_data = False
+        if x_test is not None and y_test is not None and w_test is not None and s_test is not None:
+           has_test_data = True
+           logging.info(">>> Punzi Trainer: Test data available <<<")
+
+        #-----------------------------------------------------------------------
+
+        # Run the BCE training first, according to the original paper:
+        if n_epochs_bce > 0:
+           #++++++++++++++++++++++++++++++
+           for bce_epoch in range(1,1+n_epochs_bce):
+              # Draw a random batch from data:
+              bce_training_data = self.get_data_batches([x,y,w],batch_size_bce,self.bce_device)
+              # Update model parameters:
+              self.bce_train_step(model,bce_optimizer,bce_training_data)
+              # Update the learning rate scheduler if existent:
+              if bce_lr_scheduler is not None:
+                 bce_lr_scheduler.step()
+
+              # Test, if test data is available:
+              if has_test_data:
+                 bce_test_data = self.get_data_batches([x_test,y_test,w_test],batch_size_bce,self.bce_device)
+                 self.bce_test_step(model,bce_test_data)
+
+              # Read out losses and accuracy:
+              if bce_epoch % read_epochs_bce == 0:
+                 bce_training_loss.append(self.train_bce_loss_tracker.compute().detach().cpu().item())
+                 bce_training_acc.append(self.train_bce_acc_tracker.compute().detach().cpu().item())
+                 self.train_bce_loss_tracker.reset()
+                 self.train_bce_acc_tracker.reset()
+
+                 if has_test_data:
+                    bce_testing_loss.append(self.test_bce_loss_tracker.compute().detach().cpu().item())
+                    bce_testing_acc.append(self.test_bce_acc_tracker.compute().detach().cpu().item())
+                    self.test_bce_loss_tracker.reset()
+                    self.test_bce_acc_tracker.reset()
+
+              # Print out loss values on screen:
+              if bce_epoch % mon_epochs_bce == 0:
+                 print(" ")
+                 print(f"BCE Epoch: {bce_epoch} / {n_epochs_bce}")
+                 if len(bce_training_loss) > 0 and len(bce_training_acc) > 0:
+                    print(f"BCE Training Loss: {round(bce_training_loss[-1],4)}")
+                    print(f"BCE Training Acc.: {round(bce_training_acc[-1],4)}")
+
+                 if len(bce_testing_loss) > 0 and len(bce_testing_acc) > 0:
+                    print(f"BCE Testing Loss: {round(bce_testing_loss[-1],4)}")
+                    print(f"BCE Testing Acc.: {round(bce_testing_acc[-1],4)}")
+           #++++++++++++++++++++++++++++++
+           print(" ")
+        else:
+           logging.warning(">>> Punzi Trainer: BCE training is inactive <<<")
         
+        #-----------------------------------------------------------------------
+
+        # Now run the training using the custom punzi loss:
+        if n_epochs_punzi > 0:
+           #++++++++++++++++++++++++++++++
+           for punzi_epoch in range(1,1+n_epochs_punzi):
+              # Get training data:
+              punzi_training_data = self.get_data_batches([x,y,w,s],batch_size_punzi,self.punzi_device)
+              # Update model parameters:
+              self.punzi_train_step(model,punzi_optimizer,punzi_training_data,n_gen_signal,target_luminosity)
+              # Update punzi learning rate scheduler, if existent:
+              if punzi_lr_scheduler is not None:
+                 punzi_lr_scheduler.step()
+
+              if has_test_data:
+                 punzi_testing_data = self.get_data_batches([x_test,y_test,w_test,s_test],batch_size_punzi,self.punzi_device)
+                 # Run a test step:
+                 self.punzi_test_step(model,punzi_testing_data,n_gen_signal,target_luminosity)
+
+              # Record losses and accuracies:
+              if punzi_epoch % read_epochs_punzi == 0:
+                 punzi_training_loss.append(self.train_punzi_loss_tracker.compute().detach().cpu().item())
+                 punzi_training_acc.append(self.train_punzi_acc_tracker.compute().detach().cpu().item())
+                 self.train_punzi_loss_tracker.reset()
+                 self.train_punzi_acc_tracker.reset()
+
+                 if has_test_data:
+                    punzi_testing_loss.append(self.test_punzi_loss_tracker.compute().detach().cpu().item())
+                    punzi_testing_acc.append(self.test_punzi_acc_tracker.compute().detach().cpu().item())
+                    self.test_punzi_loss_tracker.reset()
+                    self.test_punzi_acc_tracker.reset()
+              
+              # Print out loss values on screen:
+              if punzi_epoch % mon_epochs_punzi == 0:
+                 print(" ")
+                 print(f"Punzi Epoch: {punzi_epoch} / {n_epochs_punzi}")
+                 if len(punzi_training_loss) > 0 and len(punzi_training_acc) > 0:
+                    print(f"Punzi Training Loss: {round(punzi_training_loss[-1],4)}")
+                    print(f"Punzi Training Acc.: {round(punzi_training_acc[-1],4)}")
+
+                 if len(punzi_testing_loss) > 0 and len(punzi_testing_acc) > 0:
+                    print(f"Punzi Testing Loss: {round(punzi_testing_loss[-1],4)}")
+                    print(f"Punzi Testing Acc.: {round(punzi_testing_acc[-1],4)}")
+           #++++++++++++++++++++++++++++++
+           print(" ")
+        else:
+           logging.warning(">>> Punzi Trainer: Punzi training is inactive <<<")
+        
+        #-----------------------------------------------------------------------
+
+        # Return the training history:
+        return {
+           'bce_training_loss':bce_training_loss,
+           'bce_training_accuracy':bce_training_acc,
+           'bce_testing_loss':bce_testing_loss,
+           'bce_testing_accuracy':bce_testing_acc,
+           'punzi_training_loss':punzi_training_loss,
+           'punzi_training_accuracy':punzi_training_acc,
+           'punzi_testing_loss':punzi_testing_loss,
+           'punzi_testing_accuracy':punzi_testing_acc
+        }
     #********************

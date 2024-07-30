@@ -6,3 +6,4 @@ luminosity_per_branch: [6269.69, 6305.44, 5107.19]
 luminosity_factor': 1.0
 n_mass_sigma: 2
 mass_range_params: [4001, 4301, 200]
+matrix_features: ['sig_m_range','gen_mass','range_idx_low','range_idx_high']
