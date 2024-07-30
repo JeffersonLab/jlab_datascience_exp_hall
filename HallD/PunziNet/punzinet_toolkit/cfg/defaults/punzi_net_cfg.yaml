@@ -1,5 +1,10 @@
-# Torch device that we are running on:
+# Torch device we want to run on:
 torch_device: "cpu"
+# Input data specs, mainly names of dataframe columns to use:
+input_feature_names: ['mu_ptmin', 'mu_plmin', 'pt2', 'pt_mumu', 'zp_ptmin', 'zp_ptmax', 'zp_plmin', 'zp_plmax', 'pt_thrust_mum', 'pt_thrust_mup', 'cosTheta_rec_cm', 'vtx_cl', 'extraE', 'mm_E', 'Dmass', 'Dmass_g']
+target_feature_names: ['labels']
+weight_names: ['weights']
+sigma_component_names: ['sig_m_range','gen_mass','range_idx_low','range_idx_high']
 # Store the model:
 model_store_loc: "punzi_training_v0"
 store_scripted_model: True
@@ -7,24 +12,25 @@ store_scripted_model: True
 model_load_loc: ""
 load_scripted_model: False
 # Model architecture:
-n_inputs: -1
-n_outputs: 1
 architecture: [50,50,50]
-activations: ["relu"]*3
-weight_initializers: ["normal"]*3
-bias_initializers: ["normal"]*3
-dropout_percents: [0.0]*3
-branchnorms: [False]*3
+activations: ["tanh","tanh","tanh"]
+weight_initializers: ["normal","normal","normal"]
+bias_initializers: ["zeros","zeros","zeros"]
+dropout_percents: [0.0,0.0,0.0]
+batchnorms: [False,False,False]
 output_activation: "sigmoid"
 output_weight_initializer: "normal"
-output_bias_initializer: "normal"
+output_bias_initializer: "zeros"
 # Optimizers and Training:
+validation_split: 0.25
 # BCE:
 bce_optimizer: "adam"
-bce_learning_rate: 0.0001
+bce_learning_rate: 0.001
 bce_lr_scheduler_mode: "min"
-bce_lr_scheduler_factor: 0.5
+bce_lr_scheduler_factor: -0.5
 bce_lr_scheduler_patience: 2
+bce_lr_scheduler_threshold: 0.0001
+bce_lr_scheduler_threshold_mode: 'rel'
 n_epochs_bce: 20
 read_epochs_bce: 1
 mon_epochs_bce: 4
@@ -32,10 +38,12 @@ snapshot_epochs_bce: 4
 batch_size_bce: 128
 # Punzi:
 punzi_optimizer: "adam"
-punzi_learning_rate: 0.0001
+punzi_learning_rate: 0.001
 punzi_lr_scheduler_mode: "min"
-punzi_lr_scheduler_factor: 0.5
+punzi_lr_scheduler_factor: -0.5
 punzi_lr_scheduler_patience: 2
+punzi_lr_scheduler_threshold: 0.0001
+punzi_lr_scheduler_threshold_mode: 'rel'
 n_epochs_punzi: 20
 read_epochs_punzi: 1
 mon_epochs_punzi: 4

@@ -105,7 +105,7 @@ class UTestPunziDataPrep(unittest.TestCase):
 
     #*****************************************
         
-# Run this file via: python utest_pandas_parser.py
+# Run this file via: python utest_punzi_data_prep.py
 if __name__ == "__main__":
     unittest.main()
 

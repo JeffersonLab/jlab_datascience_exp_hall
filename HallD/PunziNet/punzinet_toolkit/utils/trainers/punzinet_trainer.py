@@ -1,4 +1,6 @@
-from punzinet_toolkit.utils.loss_functions import TorchLossFunctions, PunziNetLoss
+from punzinet_toolkit.utils.loss_functions.torch_loss_functions import TorchLossFunctions
+from punzinet_toolkit.utils.loss_functions.punzinet_loss import PunziNetLoss
+import torch
 import torch
 import numpy as np
 from torchmetrics import MeanMetric, Accuracy
@@ -13,9 +15,10 @@ class PunziNetTrainer(object):
     
     # Initialize
     #********************
-    def __init__(self,bce_loss_function_strig,punzi_loss_a,punzi_loss_b,punzi_loss_scale,n_mass_hypotheses,n_gen_signal,target_luminosity,snapshot_folder,store_scripted_model,torch_device):
+    def __init__(self,bce_loss_function_string,punzi_loss_a,punzi_loss_b,punzi_loss_scale,n_mass_hypotheses,n_gen_signal,target_luminosity,snapshot_folder,store_scripted_model,torch_device):
         # Get the bce loss function:
-        self.bce_loss_function = TorchLossFunctions(bce_loss_function_strig)
+        torch_losses = TorchLossFunctions(bce_loss_function_string)
+        self.bce_loss_function = torch_losses.get_loss_function()
 
         # Get the punzi loss function (this is a custom loss):
         self.punzi_loss = PunziNetLoss(n_mass_hypotheses,punzi_loss_a,punzi_loss_b,punzi_loss_scale,torch_device)
@@ -34,15 +37,15 @@ class PunziNetTrainer(object):
         # Define performance trackers:
 
         # BCE:
-        self.train_bce_loss_tracker = MeanMetric().to(self.bce_device)
-        self.test_bce_loss_tracker = MeanMetric().to(self.bce_device)
-        self.train_bce_acc_tracker = Accuracy(task='binary').to(self.bce_device)
-        self.test_bce_acc_tracker = Accuracy(task='binary').to(self.bce_device)
+        self.train_bce_loss_tracker = MeanMetric().to(self.torch_device)
+        self.test_bce_loss_tracker = MeanMetric().to(self.torch_device)
+        self.train_bce_acc_tracker = Accuracy(task='binary').to(self.torch_device)
+        self.test_bce_acc_tracker = Accuracy(task='binary').to(self.torch_device)
         # Punzi:
-        self.train_punzi_loss_tracker = MeanMetric().to(self.punzi_device)
-        self.test_punzi_loss_tracker = MeanMetric().to(self.punzi_device)
-        self.train_punzi_acc_tracker = Accuracy(task='binary').to(self.punzi_device)
-        self.test_punzi_acc_tracker = Accuracy(task='binary').to(self.punzi_device)
+        self.train_punzi_loss_tracker = MeanMetric().to(self.torch_device)
+        self.test_punzi_loss_tracker = MeanMetric().to(self.torch_device)
+        self.train_punzi_acc_tracker = Accuracy(task='binary').to(self.torch_device)
+        self.test_punzi_acc_tracker = Accuracy(task='binary').to(self.torch_device)
     #********************
 
     # Sample batches from a given list of data:
@@ -60,7 +63,7 @@ class PunziNetTrainer(object):
         batched_data = []
         #++++++++++++++++
         for dat in data_list:
-            batched_data.append(torch.as_tensor(dat[idx],device=torch.float32,device=torch_device))
+            batched_data.append(torch.squeeze(torch.as_tensor(dat[idx],dtype=torch.float32,device=torch_device)))
         #++++++++++++++++
 
         return batched_data 
@@ -74,7 +77,7 @@ class PunziNetTrainer(object):
        # Reset the optimizer:
        bce_optimizer.zero_grad(set_to_none=True)
        # Get the model predictions:
-       model_predictions = torch.squeeze(model.predict(x))
+       model_predictions = torch.squeeze(model(x))
        # Compute the weighted loss:
        weighted_loss = self.bce_loss_function(model_predictions,y)*w / torch.sum(w)
        # which leads to the loss:
@@ -83,7 +86,7 @@ class PunziNetTrainer(object):
        # Run backpropagation:
        loss.backward()
        # And weight update:
-       bce_optimizer.step()
+       #bce_optimizer.step()
        
        # Register the predictions via the trackers:
 
@@ -91,6 +94,8 @@ class PunziNetTrainer(object):
        self.train_bce_loss_tracker.update(loss)
        # Record the accuracy:
        self.train_bce_acc_tracker.update(model_predictions,y)
+
+       return loss
     
     #-----------------------
 
@@ -98,8 +103,9 @@ class PunziNetTrainer(object):
     def bce_test_step(self,model,bce_test_data):
        x,y,w = bce_test_data
        # Get the model predictions:
-       model_predictions = torch.squeeze(model.predict(x))
+       model_predictions = torch.squeeze(model(x))
        # Compute the weighted loss:
+       print(model_predictions)
        weighted_loss = self.bce_loss_function(model_predictions,y)*w / torch.sum(w)
        # which leads to the loss:
        loss = torch.sum(weighted_loss)
@@ -110,6 +116,8 @@ class PunziNetTrainer(object):
        self.test_bce_loss_tracker.update(loss)
        # Record the accuracy:
        self.test_bce_acc_tracker.update(model_predictions,y)
+
+       return loss
     #********************
 
 
@@ -121,14 +129,14 @@ class PunziNetTrainer(object):
        # Reset optimizer:
        punzi_optimizer.zero_grad(set_to_none=True)
        # Get the model predictions:
-       model_predictions = torch.squeeze(model.predict(x))
+       model_predictions = torch.squeeze(model(x))
        # Compute punzi loss:
        punzi_loss = torch.sum(torch.mean(self.punzi_loss.compute(s,model_predictions,w,self.n_gen_signal,self.target_luminosity)))
 
        # Run backpropagaion:
        punzi_loss.backward()
        # Weight update:
-       punzi_optimizer.step()
+       #punzi_optimizer.step()
 
        # Register the predictions via the trackers:
 
@@ -136,6 +144,8 @@ class PunziNetTrainer(object):
        self.train_punzi_loss_tracker.update(punzi_loss)
        # Record the accuracy:
        self.train_punzi_acc_tracker.update(model_predictions,y)
+
+       return punzi_loss
     
     #-----------------------
 
@@ -143,7 +153,7 @@ class PunziNetTrainer(object):
     def punzi_test_step(self,model,punzi_test_data):
        x,y,w,s = punzi_test_data
        # Get the model predictions:
-       model_predictions = torch.squeeze(model.predict(x))
+       model_predictions = torch.squeeze(model(x))
        # Compute punzi loss:
        punzi_loss = torch.sum(torch.mean(self.punzi_loss.compute(s,model_predictions,w,self.n_gen_signal,self.target_luminosity)))
 
@@ -153,6 +163,8 @@ class PunziNetTrainer(object):
        self.test_punzi_loss_tracker.update(punzi_loss)
        # Record the accuracy:
        self.test_punzi_acc_tracker.update(model_predictions,y)
+
+       return punzi_loss
     #********************
     
     # Store the model at a given epoch, i.e. take a snapshot:
@@ -196,15 +208,19 @@ class PunziNetTrainer(object):
               # Draw a random batch from data:
               bce_training_data = self.get_data_batches([x,y,w],batch_size_bce,self.torch_device)
               # Update model parameters:
-              self.bce_train_step(model,bce_optimizer,bce_training_data)
-              # Update the learning rate scheduler if existent:
-              if bce_lr_scheduler is not None:
-                 bce_lr_scheduler.step()
-
+              bce_train_loss = self.bce_train_step(model,bce_optimizer,bce_training_data)
+              
               # Test, if test data is available:
               if has_test_data:
                  bce_test_data = self.get_data_batches([x_test,y_test,w_test],batch_size_bce,self.torch_device)
-                 self.bce_test_step(model,bce_test_data)
+                 bce_test_loss = self.bce_test_step(model,bce_test_data)
+
+              # Update the learning rate scheduler if existent:
+              if bce_lr_scheduler is not None:
+                 if has_test_data:
+                    bce_lr_scheduler.step(bce_test_loss)
+                 else:
+                    bce_lr_scheduler.step(bce_train_loss)
 
               # Read out losses and accuracy:
               if bce_epoch % read_epochs_bce == 0:
@@ -248,15 +264,20 @@ class PunziNetTrainer(object):
               # Get training data:
               punzi_training_data = self.get_data_batches([x,y,w,s],batch_size_punzi,self.torch_device)
               # Update model parameters:
-              self.punzi_train_step(model,punzi_optimizer,punzi_training_data)
-              # Update punzi learning rate scheduler, if existent:
-              if punzi_lr_scheduler is not None:
-                 punzi_lr_scheduler.step()
+              train_loss = self.punzi_train_step(model,punzi_optimizer,punzi_training_data)
+              
 
               if has_test_data:
                  punzi_testing_data = self.get_data_batches([x_test,y_test,w_test,s_test],batch_size_punzi,self.torch_device)
                  # Run a test step:
-                 self.punzi_test_step(model,punzi_testing_data)
+                 test_loss = self.punzi_test_step(model,punzi_testing_data)
+
+              # Update punzi learning rate scheduler, if existent:
+              if punzi_lr_scheduler is not None:
+                 if has_test_data:
+                    punzi_lr_scheduler.step(test_loss)
+                 else:
+                    punzi_lr_scheduler.step(train_loss)
 
               # Record losses and accuracies:
               if punzi_epoch % read_epochs_punzi == 0:
