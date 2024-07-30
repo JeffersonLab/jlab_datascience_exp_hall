@@ -86,7 +86,7 @@ class PunziNetTrainer(object):
        # Run backpropagation:
        loss.backward()
        # And weight update:
-       #bce_optimizer.step()
+       bce_optimizer.step()
        
        # Register the predictions via the trackers:
 
@@ -105,7 +105,6 @@ class PunziNetTrainer(object):
        # Get the model predictions:
        model_predictions = torch.squeeze(model(x))
        # Compute the weighted loss:
-       print(model_predictions)
        weighted_loss = self.bce_loss_function(model_predictions,y)*w / torch.sum(w)
        # which leads to the loss:
        loss = torch.sum(weighted_loss)
@@ -136,7 +135,7 @@ class PunziNetTrainer(object):
        # Run backpropagaion:
        punzi_loss.backward()
        # Weight update:
-       #punzi_optimizer.step()
+       punzi_optimizer.step()
 
        # Register the predictions via the trackers:
 
