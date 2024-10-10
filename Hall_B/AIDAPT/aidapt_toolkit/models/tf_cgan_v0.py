@@ -1,6 +1,7 @@
 import tensorflow as tf
 from jlab_datascience_toolkit.core.jdst_model import JDSTModel
 from tensorflow.keras.callbacks import Callback
+from omegaconf import OmegaConf
 import matplotlib.pyplot as plt
 import numpy as np
 import inspect
@@ -281,7 +282,8 @@ class TF_CGAN(JDSTModel):
         self.generator.save_weights(os.path.join(filepath, 'generator.weights.h5'))
         self.discriminator.save_weights(os.path.join(filepath, 'discriminator.weights.h5'))
         with open(os.path.join(filepath, 'config.yaml'), 'w') as f:
-            yaml.safe_dump(self.config, f)
+            #yaml.safe_dump(self.config, f)
+            OmegaConf.save(self.config, f)
         # TODO: Save state of optimizers
 
     def analysis(self, path=None):

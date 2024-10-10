@@ -4,6 +4,7 @@ import logging
 from jlab_datascience_toolkit.core.jdst_data_prep import JDSTDataPrep
 from aidapt_toolkit.utils.math_utils import four_vector_dot, get_alpha
 from aidapt_toolkit.utils.config_utils import verify_config
+from omegaconf import OmegaConf
 import yaml
 import inspect
 
@@ -69,7 +70,8 @@ class LabVariablesToInvariants(JDSTDataPrep):
 
     def save_config(self, path):
         with open(path, 'w') as f:
-            yaml.safe_dump(self.config, f)
+            OmegaConf.save(self.config, f)
+            #yaml.safe_dump(self.config, f)
 
     def load(self, path):
         aidapt_lab2invariants_log.debug('Nothing to load...')

@@ -2,6 +2,7 @@ import os
 import numpy as np
 from jlab_datascience_toolkit.core.jdst_data_prep import JDSTDataPrep
 from aidapt_toolkit.utils.config_utils import verify_config
+from omegaconf import OmegaConf
 import inspect
 import yaml
 
@@ -36,7 +37,8 @@ class NumpyMinMaxScaler(JDSTDataPrep):
 
     def save_config(self, path):
         with open(path, 'w') as f:
-            yaml.safe_dump(self.config, f)
+            OmegaConf.save(self.config, f)
+            #yaml.safe_dump(self.config, f)
 
     def train(self, data: np.ndarray):
         x = data

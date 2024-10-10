@@ -1,5 +1,6 @@
 from jlab_datascience_toolkit.core.jdst_data_parser import JDSTDataParser
 from pathlib import Path
+from omegaconf import OmegaConf
 import numpy as np
 import logging
 import yaml
@@ -91,7 +92,7 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
         # save_dir = base_path.joinpath(self.module_name)
         os.makedirs(save_dir)
         with open(save_dir.joinpath('config.yaml'), 'w') as f:
-            yaml.safe_dump(self.config, f)
+            OmegaConf.save(self.config, f)
 
     def load_data(self) -> np.ndarray:
         """ Loads all files listed in `config['filepaths']` and concatenates 

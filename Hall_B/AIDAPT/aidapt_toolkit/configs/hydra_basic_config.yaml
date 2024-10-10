@@ -1,15 +1,20 @@
 d_scaler:
+  id: numpy_minmax_scaler
   feature_range: &id001
   - -1
   - 1
 detector_parser:
+  id: aidapt_numpy_reader_v0
   filepaths:
   - ./data/ps_detector/ps_detector_0.npy
   - ./data/ps_detector/ps_detector_1.npy
   - ./data/ps_detector/ps_detector_2.npy
   - ./data/ps_detector/ps_detector_3.npy
-lab2inv: {}
+lab2inv: 
+  id: lab_variables_to_invariants
+  MP: 0.93827
 model:
+  id: tf_cgan_v0
   batch_size: 4096
   discriminator_layers:
   - - Dense
@@ -56,8 +61,10 @@ model:
   label_shape: 5
   latent_dim: 100
 v_scaler:
+  id: numpy_minmax_scaler
   feature_range: *id001
 vertex_parser:
+  id: aidapt_numpy_reader_v0
   filepaths:
   - ./data/ps_vertex/ps_vertex_0.npy
   - ./data/ps_vertex/ps_vertex_1.npy
