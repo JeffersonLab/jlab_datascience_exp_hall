@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aidapt_toolkit"
+dynamic = ["version"]
+description = "AIDAPT for Hall B"
+readme = "README.md"
+license = ""
+authors = [
+  { name = "JLab Data Science Department" },
+  { name = "Steven Goldenberg", email = "sgolden@jlab.org" },
+  { name = "Malachi Schram", email = "schram@jlab.org" },
+  { name = "Daniel Lersch", email = "dlersch@jlab.org" },
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Intended Audience :: Science/Research"
+]
+dependencies = [
+  "hydra-core",
+  "keras==3.4.1",
+  "tensorflow",
+  "numpy",
+  "matplotlib",
+  "jlab_datascience_toolkit@git+https://github.com/JeffersonLab/jlab_datascience_core/",
+]
+
+[project.urls]
+Source = "https://github.com/JeffersonLab/jlab_datascience_exp_hall"
+
+[tool.hatch.version]
+path = "aidapt_toolkit/__about__.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+sources = ["HallB/AIDAPT/aidapt_toolkit"]
+
+[tool.hatch.envs.style]
+dependencies = [
+  "black",
+]
+
+[tool.hatch.envs.style.scripts]
+check = [
+  "black --check --diff ."
+]
+format = [
+  "black ."
+]
+
