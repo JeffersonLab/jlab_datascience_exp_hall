@@ -8,16 +8,15 @@ import logging
 
 logger = logging.getLogger("AIDAPT")
 
-class TF_OuterGAN_V0(TF_CGAN):
-    """ Model for the OuterGAN. 
 
-    
-    """
-    def __init__(self, config: dict = None, name: str = 'outergan_v0') -> None:
+class TF_OuterGAN_V0(TF_CGAN):
+    """Model for the OuterGAN."""
+
+    def __init__(self, config: dict = None, name: str = "outergan_v0") -> None:
         super().__init__(config, name)
 
-        self.unfolding_path = config['unfolding_path']
-        self.unfolding_id = config['unfolding_id']
+        self.unfolding_path = config["unfolding_path"]
+        self.unfolding_id = config["unfolding_id"]
 
         with open(f"{self.unfolding_path}/config.yaml", "r") as f:
             self.unfolding_config = yaml.safe_load(f)
@@ -27,7 +26,7 @@ class TF_OuterGAN_V0(TF_CGAN):
 
         # This assumes InnerGAN is a TF_CGAN...
         self.unfolding_model.cgan.trainable = False
-    
+
     def train_step(self, data):
         inputs, real_images = data
         batch_size = tf.shape(real_images)[0]
@@ -39,8 +38,10 @@ class TF_OuterGAN_V0(TF_CGAN):
         combined_images = tf.concat([generated_images, real_images], axis=0)
         combined_inputs = tf.concat([inputs, inputs], axis=0)
 
-        labels = tf.concat([tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))], axis=0)
-        labels += 0.05*tf.random.uniform(tf.shape(labels))
+        labels = tf.concat(
+            [tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))], axis=0
+        )
+        labels += 0.05 * tf.random.uniform(tf.shape(labels))
 
         with tf.GradientTape() as tape:
             predictions = self.discriminator((combined_inputs, combined_images))

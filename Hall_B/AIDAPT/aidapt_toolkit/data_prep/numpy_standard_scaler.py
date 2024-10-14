@@ -6,16 +6,16 @@ import yaml
 
 
 class NumpyStandardScaler(JDSTDataPrep):
-    """ Performs standard normal scaling on numpy ndarrays.
+    """Performs standard normal scaling on numpy ndarrays.
 
-    Assumes data is formatted as (samples, features, ...) and that 
-    normalization is desired over all dimensions (1 scaler per feature 
+    Assumes data is formatted as (samples, features, ...) and that
+    normalization is desired over all dimensions (1 scaler per feature
     dimension)
     """
 
-    # We fill config with a default of None since the module has no 
+    # We fill config with a default of None since the module has no
     #       configuration parameters
-    def __init__(self, config=None, name='numpy_standard_scaler') -> None:
+    def __init__(self, config=None, name="numpy_standard_scaler") -> None:
         self.mean = 0
         self.std = 1
         self.module_name = name
@@ -58,11 +58,11 @@ class NumpyStandardScaler(JDSTDataPrep):
 
     def save(self, path):
         os.makedirs(path)
-        fullpath = os.path.join(path, f'standard_scaler_params.npz')
+        fullpath = os.path.join(path, f"standard_scaler_params.npz")
         np.savez(fullpath, mean=self.mean, std=self.std)
 
     def load(self, path):
-        fullpath = os.path.join(path, f'standard_scaler_params.npz')
+        fullpath = os.path.join(path, f"standard_scaler_params.npz")
         module_params = np.load(fullpath)
-        self.mean = module_params['mean']
-        self.std = module_params['std']
+        self.mean = module_params["mean"]
+        self.std = module_params["std"]
