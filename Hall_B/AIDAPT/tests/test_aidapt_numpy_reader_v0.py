@@ -58,11 +58,14 @@ class TestNumpyReader:
 
         data_file = tmp_path.joinpath("temp_data.npy")
 
-        parser = self.base_init(config = {"filenames": data_file})
+        parser = self.base_init(config = {"filepaths": data_file})
 
-        parsed_data = parser.load_data()
+
+        print([f for f in tmp_path.walk()])
+
         np.save(data_file, data)
 
-        parser
+        parsed_data = parser.load_data()
+        assert np.allclose(parsed_data, data)
 
 
