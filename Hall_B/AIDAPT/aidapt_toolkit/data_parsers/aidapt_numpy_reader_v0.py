@@ -62,6 +62,9 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
         if isinstance(self.config['filepaths'], str):
             self.config['filepaths'] = [self.config['filepaths']]
 
+        if isinstance(self.config['filepaths'], Path):
+            self.config['filepaths'] = [self.config['filepaths']]
+
     def get_info(self):
         """ Prints the docstring for the AIDAPTNumpyReaderV0 module"""
         print(inspect.getdoc(self))
