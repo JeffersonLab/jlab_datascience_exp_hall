@@ -108,7 +108,7 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
 
         # Check for empty data and return nothing if empty
         if not data_list:
-            aidapt_numpy_reader_log.warn(
+            aidapt_numpy_reader_log.warning(
                 'load_data() returning None. This is probably not what you '
                 'wanted. Ensure that your configuration includes the key '
                 '"filepaths"')
@@ -123,13 +123,13 @@ class AIDAPTNumpyReaderV0(JDSTDataParser):
         pass
 
     def load_config(self, path: str):
-        aidapt_numpy_reader_log.warn(
+        aidapt_numpy_reader_log.warning(
             'load_config() is currently unimplemented. '
             'Did you mean load()?')
         pass
 
     def save_config(self, path: str):
-        aidapt_numpy_reader_log.warn(
+        aidapt_numpy_reader_log.warning(
             'save_config() is currently unimplemented.'
             ' Did you mean save()?')
         pass
