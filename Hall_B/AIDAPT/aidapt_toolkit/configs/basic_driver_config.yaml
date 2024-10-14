@@ -1,0 +1,68 @@
+config:
+  d_scaler:
+    feature_range: &id001
+    - -1
+    - 1
+  detector_parser:
+    filepaths:
+    - ./scratch/data/ps_detector/ps_detector_0.npy
+    - ./scratch/data/ps_detector/ps_detector_1.npy
+    - ./scratch/data/ps_detector/ps_detector_2.npy
+    - ./scratch/data/ps_detector/ps_detector_3.npy
+  lab2inv: {}
+  model:
+    batch_size: 4096
+    discriminator_layers:
+    - - Dense
+      - units: 256
+    - - LeakyReLU
+      - negative_slope: 0.2
+    - - Dense
+      - units: 128
+    - - LeakyReLU
+      - negative_slope: 0.2
+    - - Dense
+      - units: 64
+    - - LeakyReLU
+      - negative_slope: 0.2
+    discriminator_optimizer:
+    - Adam
+    - beta_1: 0.5
+      learning_rate: 1.0e-05
+    epochs: 2
+    generator_layers:
+    - - Dense
+      - units: 64
+    - - LeakyReLU
+      - negative_slope: 0.2
+    - - BatchNormalization
+      - momentum: 0.8
+    - - Dense
+      - units: 128
+    - - LeakyReLU
+      - negative_slope: 0.2
+    - - BatchNormalization
+      - momentum: 0.8
+    - - Dense
+      - units: 256
+    - - LeakyReLU
+      - negative_slope: 0.2
+    - - BatchNormalization
+      - momentum: 0.8
+    generator_optimizer:
+    - Adam
+    - beta_1: 0.5
+      learning_rate: 5.0e-05
+    image_shape: 4
+    label_shape: 5
+    latent_dim: 100
+  v_scaler:
+    feature_range: *id001
+  vertex_parser:
+    filepaths:
+    - ./scratch/data/ps_vertex/ps_vertex_0.npy
+    - ./scratch/data/ps_vertex/ps_vertex_1.npy
+    - ./scratch/data/ps_vertex/ps_vertex_2.npy
+    - ./scratch/data/ps_vertex/ps_vertex_3.npy
+  driver:
+    save_path: ./scratch/runs/temp/
