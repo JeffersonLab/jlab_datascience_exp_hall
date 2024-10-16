@@ -22,22 +22,24 @@ class TestNumpyReader:
         assert self.parser_id in all_parsers
 
     def base_init(self, config):
-        parser = aidapt_toolkit.data_parsers.make(self.parser_id, config = config, name = self.parser_name)
+        parser = aidapt_toolkit.data_parsers.make(
+            self.parser_id, config=config, name=self.parser_name
+        )
         return parser
 
     def test_base_init(self):
-        parser = self.base_init(config = self.parser_config)
+        parser = self.base_init(config=self.parser_config)
 
     def test_parser_get_info(self):
-        parser = self.base_init(config = self.parser_config)
+        parser = self.base_init(config=self.parser_config)
         output = parser.get_info()
 
         # Since this prints to stdout, the output should be None
         assert output is None
 
     def test_save_module(self, tmp_path):
-        parser = self.base_init(config = self.parser_config)
-        
+        parser = self.base_init(config=self.parser_config)
+
         # Since tmp_path already exists, we should not be able to save there
         with pytest.raises(FileExistsError):
             parser.save(tmp_path)
@@ -58,8 +60,7 @@ class TestNumpyReader:
 
         data_file = tmp_path.joinpath("temp_data.npy")
 
-        parser = self.base_init(config = {"filepaths": data_file})
-
+        parser = self.base_init(config={"filepaths": data_file})
 
         print([f for f in tmp_path.walk()])
 
@@ -67,5 +68,3 @@ class TestNumpyReader:
 
         parsed_data = parser.load_data()
         assert np.allclose(parsed_data, data)
-
-
