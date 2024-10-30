@@ -56,13 +56,26 @@ def run(config) -> None:
     v_invariants_scaled = v_scaler.run(v_invariants)
     d_invariants_scaled = d_scaler.run(d_invariants)
 
-    history = model.train([d_invariants_scaled, v_invariants_scaled])
+    batches_per_epoch = len(d_invariants_scaled) // config['model']['batch_size']
+    batches_per_epoch_remainder = len(d_invariants_scaled) % config['model']['batch_size']
+    print('batches_per_epoch_remainder: ', batches_per_epoch_remainder)
+    if batches_per_epoch_remainder > 0:
+        batches_per_epoch += 1
+        
+    #history = model.train([d_invariants_scaled, v_invariants_scaled])
+    history = model.train([d_invariants_scaled, v_invariants_scaled],
+                    save_path, batches_per_epoch, d_invariants, d_scaler,
+                    config['model']['latent_dim'],
+                    config['metrics']['layer_specific_gradients'], config['metrics']['grad_frequency'],
+                    config['metrics']['chi2'], config['metrics']['chi2_frequency'],
+                    config['metrics']['disc_accuracy'], config['metrics']['acc_frequency'])
+    
     d_results_scaled = model.predict(v_invariants_scaled)
 
     d_results = d_scaler.reverse(d_results_scaled)
 
     # Plot training history
-    model.analysis(save_path)
+    #model.analysis(save_path)
 
     # Plot distributions
     fig, axs = plt.subplots(2, 2)
