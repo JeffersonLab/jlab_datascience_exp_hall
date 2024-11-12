@@ -128,8 +128,12 @@ class TF_CGAN_Keras(tf.keras.Model):
         self.tracker = None
         self.initialized = False
 
-        # Initialize discriminator accuracy tracker 
+        # Initialize discriminator accuracy trackers 
         self.disc_acc_tracker = tf.keras.metrics.Mean(name='disc_acc')
+        #self.true_labels_tracker = tf.keras.metrics.Mean(name='true_lables')
+        #self.predicted_scores_tracker = tf.keras.metrics.Mean(name='predicted_scores')
+        self.true_labels_list = []
+        self.predicted_scores_list = []
 
         # Initialize discriminator gradient norm trackers for each layer
         self.discriminator_layer_gradient_norms_tracker = {}
@@ -203,6 +207,7 @@ class TF_CGAN_Keras(tf.keras.Model):
             # Apply sigmoid if predictions are logits
             predictions = tf.sigmoid(predictions)
 
+        predicted_scores = predictions
         predicted_labels = tf.cast(predictions > 0.5, tf.float32)
         accuracy = tf.reduce_mean(tf.cast(tf.equal(predicted_labels, tf.round(true_labels)), tf.float32))
 
@@ -256,6 +261,12 @@ class TF_CGAN_Keras(tf.keras.Model):
             gen_item_counter += 1
 
         self.disc_acc_tracker.update_state(accuracy)
+        #self.predicted_scores_tracker.update_state(predicted_scores)
+        #self.true_labels_tracker.update_state(true_labels)
+        #self.true_labels_list.extend(true_labels.numpy().flatten())
+        #self.predicted_scores_list.extend(predictions.numpy().flatten())
+        self.true_labels_list.append(true_labels)
+        self.predicted_scores_list.append(predictions)
         # ------------------------------------------------------------------------------------ #
 
         # Return tracked metrics
@@ -534,7 +545,10 @@ class TF_CGAN(JDSTModel):
         self.cgan.set_tracker(tracker)
 
         # Initialize gradient monitor
-        gradient_monitor = gm.GradientMonitor(self.cgan_model, output_path, grad_frequency, make_layer_grad_plots)
+        gradient_monitor = gm.GradientMonitor(self.cgan_model,
+                                              output_path,
+                                              grad_frequency,
+                                              make_layer_grad_plots)
         callbacks_list = [tracker, gradient_monitor]
 
         # Add "chi_square_monitor" to "callbacks_list" if set as "True" in config file
@@ -547,7 +561,13 @@ class TF_CGAN(JDSTModel):
 
         # Add "disc_acc_monitor" to "callbacks_list" if set as "True" in config file
         if (make_disc_accuracy_plots):
-            disc_acc_monitor = gm.AccuracyMonitor(self.cgan_model, output_path, frequency=accuracy_frequency)
+            disc_acc_monitor = gm.AccuracyMonitor(self.cgan_model,
+                                                  output_path,
+                                                  frequency=accuracy_frequency,
+                                                  training_data=(labels, images),
+                                                  batch_size=self.batch_size,
+                                                  noise_dim=self.latent_dim
+                                                  )
             callbacks_list.append(disc_acc_monitor)
 
         self.cgan.steps_per_epoch = batches_per_epoch

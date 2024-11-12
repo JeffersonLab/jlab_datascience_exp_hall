@@ -79,10 +79,6 @@ class GradientMonitor(tf.keras.callbacks.Callback):
 
         print("hist.items(): ", hist.items())
 
-        # Generate x-axis values (epochs) based on k
-        #epochs = list(range(0, len(next(iter(self.generator_gradients.values())))))
-        #print(epochs)
-
         # Plot layer-specific gradient norms
         disc_layer_grad_norm_name_arr = []
         gen_layer_grad_norm_name_arr = []
@@ -96,8 +92,22 @@ class GradientMonitor(tf.keras.callbacks.Callback):
 
         #epochs = list(range(0, len(hist[disc_layer_grad_norm_name_arr[1]]) + 1, self.k))
         
-        print("disc_layer_grad_norm_name_arr: ", disc_layer_grad_norm_name_arr)
-        disc_fig_grad_norm_layers, disc_axes_grad_norm_layers = plt.subplots(len(disc_layer_grad_norm_name_arr), 1, figsize=(10, (len(disc_layer_grad_norm_name_arr) + 1) * 3))
+        #print("disc_layer_grad_norm_name_arr: ", disc_layer_grad_norm_name_arr)
+        if (len(disc_layer_grad_norm_name_arr) <= 5):
+            disc_columns = 1
+        if (len(disc_layer_grad_norm_name_arr) > 5 and len(disc_layer_grad_norm_name_arr) <= 10):
+            disc_columns = 2
+        elif (len(disc_layer_grad_norm_name_arr) > 10):
+            disc_columns = 3
+
+        # Calculate the number of rows needed based on the number of layers and columns
+        disc_rows = (len(disc_layer_grad_norm_name_arr) + disc_columns - 1) // disc_columns
+        disc_fig_grad_norm_layers, disc_axes_grad_norm_layers = plt.subplots(disc_rows, disc_columns, figsize=(disc_columns * 5, disc_rows * 3))
+        #disc_fig_grad_norm_layers, disc_axes_grad_norm_layers = plt.subplots(rows, columns, figsize=(10, (len(disc_layer_grad_norm_name_arr) + 1) * 3))
+        
+        # Flatten the axes for easy indexing if it's not a 1D array already
+        disc_axes_grad_norm_layers = disc_axes_grad_norm_layers.flatten() if isinstance(disc_axes_grad_norm_layers, np.ndarray) else [disc_axes_grad_norm_layers]
+
         disc_axes_grad_norm_layers[0].plot(np.array(hist[f'discriminator_gradient_norm']))
         disc_axes_grad_norm_layers[0].set_title(f'Discriminator (all layers)')
         disc_axes_grad_norm_layers[0].set_xlabel('Epoch')
@@ -113,7 +123,21 @@ class GradientMonitor(tf.keras.callbacks.Callback):
         plt.savefig(os.path.join(self.out_dir, 'disc_layer_gradient_norms.png'))
         plt.close(disc_fig_grad_norm_layers)
         
-        gen_fig_grad_norm_layers, gen_axes_grad_norm_layers = plt.subplots(len(gen_layer_grad_norm_name_arr), 1, figsize=(10, (len(gen_layer_grad_norm_name_arr) + 1) * 3))
+        if (len(gen_layer_grad_norm_name_arr) <= 5):
+            gen_columns = 1
+        if (len(gen_layer_grad_norm_name_arr) > 5 and len(gen_layer_grad_norm_name_arr) <= 10):
+            gen_columns = 2
+        elif (len(gen_layer_grad_norm_name_arr) > 10):
+            gen_columns = 3
+
+        # Calculate the number of rows needed based on the number of layers and columns
+        gen_rows = (len(gen_layer_grad_norm_name_arr) + gen_columns - 1) // gen_columns
+        gen_fig_grad_norm_layers, gen_axes_grad_norm_layers = plt.subplots(gen_rows, gen_columns, figsize=(gen_columns * 5, gen_rows * 3))
+        
+        # Flatten the axes for easy indexing if it's not a 1D array already
+        gen_axes_grad_norm_layers = gen_axes_grad_norm_layers.flatten() if isinstance(gen_axes_grad_norm_layers, np.ndarray) else [gen_axes_grad_norm_layers]
+        
+        #gen_fig_grad_norm_layers, gen_axes_grad_norm_layers = plt.subplots(len(gen_layer_grad_norm_name_arr), 1, figsize=(10, (len(gen_layer_grad_norm_name_arr) + 1) * 3))
         gen_axes_grad_norm_layers[0].plot(np.array(hist[f'generator_gradient_norm']))
         gen_axes_grad_norm_layers[0].set_title(f'Generator (all layers)')
         gen_axes_grad_norm_layers[0].set_xlabel('Epoch')
@@ -145,7 +169,7 @@ class GradientMonitor(tf.keras.callbacks.Callback):
         
         
     def analysis(self):
-        #print("self: ", self)
+
         # Plot training history
         hist = self.history
         #print("hist: ", hist)
@@ -160,7 +184,6 @@ class GradientMonitor(tf.keras.callbacks.Callback):
 
         discriminator_gradient_norms = np.array(hist['discriminator_gradient_norm'])
         generator_gradient_norms = np.array(hist['generator_gradient_norm'])
-        #print(generator_gradient_norms)
         
         # Plot gradient norms
         plt.subplot(1, 2, 2)
@@ -202,9 +225,6 @@ class ChiSquareMonitor(tf.keras.callbacks.Callback):
             # Avoid division by zero: add a small value to target_hist where it's zero
             target_hist = np.where(target_hist == 0, 1e-6, target_hist)
 
-            #print("gen_hist: ", gen_hist)
-            #print("target_hist: ", target_hist)
-            #print("bins: ", bins)
             # Calculate chi² for this variable
             chi2 = np.sum((gen_hist - target_hist)**2 / target_hist)
             reduced_chi2 = chi2 / float(bins)
@@ -219,18 +239,10 @@ class ChiSquareMonitor(tf.keras.callbacks.Callback):
             # Run prediction to generate GAN's output distribution
             generated_distributions = self.monitored_model.generator.predict([self.data, noise], batch_size=1024)
             generated_distributions = self.d_scaler.reverse(generated_distributions)
-            #print("generated_distributions: ", generated_distributions)
-            #print("self.target_distributions: ", self.target_distributions)
 
             # Calculate chi^2 between generated and target distributions
             chi2_value = self.calculate_chi2(generated_distributions, self.target_distributions)
             self.chi2_values.append((epoch, chi2_value))
-
-            #num_data_points = np.prod(self.target_distributions.shape)
-            #print("num_data_points: ", num_data_points)
-            #reduced_chi2 = chi2 / num_data_points
-            
-            #print(f'Epoch {epoch+1}: reduced Chi^2 value: {chi2_value}')
 
     def on_train_end(self, logs=None):
         self.plot_chi2_vs_epoch()
@@ -265,43 +277,86 @@ class ChiSquareMonitor(tf.keras.callbacks.Callback):
         return self.chi2_values
 
 class AccuracyMonitor(tf.keras.callbacks.Callback):
-    def __init__(self, input_model, out_dir, frequency):
+    def __init__(self, input_model, out_dir, frequency, training_data, batch_size, noise_dim):
         super().__init__()
         self.input_model = input_model
         self.out_dir = out_dir
         #self.k = k
         self.accuracy_data = []
         self.frequency = frequency
-        #self.make_layer_grad_plots = make_layer_grad_plots
-        #super(AccuracyMonitor, self).__init__()
+        self.training_data = training_data  # (labels, images)
+        self.batch_size = batch_size
+        self.noise_dim = noise_dim
 
         self.history = {
             "accuracy": [],
             "Epoch": [],
+            "true_labels": [],
+            "predicted_scores": []
         }
 
     def on_epoch_end(self, epoch, logs=None):
         log = logs or {}
         if (epoch + 1) % self.frequency == 0:
-            #self.history["accuracy"].append(logs["disc_acc"])
             self.history["Epoch"].append(epoch)
 
             disc_acc = self.model.disc_acc_tracker.result().numpy()
-            #print(f"Epoch {epoch}: Discriminator Accuracy: {disc_acc}")
-        
-            #print("self.history['accuracy']: ", self.history["accuracy"])
-            #avg_accuracy = np.mean(self.input_model.disc_acc_tracker)
-            #self.model.epoch_accuracy.append(avg_accuracy)
-            #print(f"Epoch {epoch + 1}, Discriminator Accuracy: {avg_accuracy:.4f}")
 
             # Update history dictionary
             self.history["accuracy"].append(disc_acc)
-        
-            # Reset the batch accuracy list for the next epoch
-            #self.model.disc_acc_tracker = []
 
+            # Compute predictions and true labels
+            true_labels, predicted_scores = self.compute_predictions()
+            
+            # Store data in history
+            self.history["true_labels"].extend(true_labels)
+            self.history["predicted_scores"].extend(predicted_scores)
+
+    def compute_predictions(self):
+        # Unpack training data
+        labels, images = self.training_data
+
+        labels = tf.convert_to_tensor(labels, dtype=tf.float32)
+        images = tf.convert_to_tensor(images, dtype=tf.float32)
+
+        batch_size = self.batch_size
+
+        # Generate noise
+        noise = tf.random.normal([batch_size, self.noise_dim])
+
+        # Generate fake images
+        generated_images = self.model.generator([labels[:batch_size], noise], training=False)
+
+        # Combine real and fake images and labels
+        combined_images = tf.concat([images[:batch_size], generated_images], axis=0)
+        combined_labels = tf.concat([labels[:batch_size], labels[:batch_size]], axis=0)
+
+        # Create true labels for discriminator
+        true_labels = tf.concat(
+            [tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))], axis=0
+        )
+
+        # Get predictions from discriminator
+        predictions = self.model.discriminator(
+            [combined_labels, combined_images], training=False
+        )
+
+        # Apply sigmoid if necessary
+        if (
+            isinstance(self.model.d_loss_fn, tf.keras.losses.BinaryCrossentropy)
+            and getattr(self.model.d_loss_fn, "from_logits", False)
+        ):
+            predictions = tf.sigmoid(predictions)
+
+        # Convert tensors to NumPy arrays
+        true_labels = true_labels.numpy().flatten()
+        predicted_scores = predictions.numpy().flatten()
+
+        return true_labels, predicted_scores
+    
     def on_train_end(self, logs=None):
         self.plot_accuracy_vs_epoch()
+        self.plot_roc_curve()
 
     def plot_accuracy_vs_epoch(self):
         plt.figure(figsize=(10, 6))
@@ -312,3 +367,73 @@ class AccuracyMonitor(tf.keras.callbacks.Callback):
 
         plt.savefig(os.path.join(self.out_dir, 'disc_acc_vs_epoch.png'))
         plt.close()
+
+    def plot_roc_curve(self):
+        true_labels = np.array(self.history["true_labels"])
+        predicted_scores = np.array(self.history["predicted_scores"])
+
+        # Compute ROC curve and ROC area
+        fpr, tpr = self.compute_roc_curve(true_labels, predicted_scores)
+
+        # Compute AUC using the trapezoidal rule
+        auc_score = np.trapz(tpr, fpr)
+
+        # Plot ROC curve
+        plt.figure(figsize=(10, 6))
+        plt.plot(fpr, tpr, label=f'ROC curve (area = {auc_score:.2f})')
+        plt.plot([0, 1], [0, 1], 'k--', label='Random chance')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC Curve for Discriminator')
+        plt.legend(loc='lower right')
+        plt.savefig(os.path.join(self.out_dir, 'roc_curve.png'))
+        plt.close()
+
+    def compute_roc_curve(self, true_labels, predicted_scores):
+        # Sort scores and corresponding true labels in descending order
+        sorted_indices = np.argsort(-predicted_scores)
+        sorted_true_labels = true_labels[sorted_indices]
+        sorted_predicted_scores = predicted_scores[sorted_indices]
+
+        # Total number of positive and negative samples
+        P = np.sum(sorted_true_labels)
+        N = len(sorted_true_labels) - P
+
+        TPR_list = []
+        FPR_list = []
+
+        TP = 0
+        FP = 0
+
+        # Initialize previous score to a value outside possible score range
+        prev_score = -np.inf
+
+        # Loop over all instances
+        for i in range(len(sorted_true_labels)):
+            score = sorted_predicted_scores[i]
+            label = sorted_true_labels[i]
+
+            if score != prev_score:
+                # Calculate TPR and FPR
+                TPR = TP / P if P > 0 else 0
+                FPR = FP / N if N > 0 else 0
+                TPR_list.append(TPR)
+                FPR_list.append(FPR)
+                prev_score = score
+
+            if label == 1:
+                TP += 1
+            else:
+                FP += 1
+
+        # Append the last point
+        TPR = TP / P if P > 0 else 0
+        FPR = FP / N if N > 0 else 0
+        TPR_list.append(TPR)
+        FPR_list.append(FPR)
+
+        # Convert lists to NumPy arrays
+        FPR_array = np.array(FPR_list)
+        TPR_array = np.array(TPR_list)
+
+        return FPR_array, TPR_array
