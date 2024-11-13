@@ -325,7 +325,8 @@ class TF_CGAN(JDSTModel):
             random_seed=42,
             make_layer_grad_plots=False,
             make_chi2_plots=False,
-            chi2_frequency=100)
+            chi2_frequency=100,
+            gan_type="inner")
         
         if config is not None:
             self.config.update(config)
@@ -360,9 +361,22 @@ class TF_CGAN(JDSTModel):
         for layer in self.discriminator.layers:
             print(layer.name)
         '''
-        self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
-                            noise_dim=self.config['latent_dim'], 
-                            batch_size=self.config['batch_size'])
+        if self.config["gan_type"].lower() == "inner":
+            self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
+                                noise_dim=self.config['latent_dim'], 
+                                batch_size=self.config['batch_size'])
+        elif self.config["gan_type"].lower() == "outer":
+            print(self.config["unfolding_path"])
+            assert "unfolding_path" in self.config
+            assert "unfolding_id" in self.config
+            from aidapt_toolkit.models.tf_outer_cgan_v0 import TF_OuterGAN_V0
+            self.cgan = TF_OuterGAN_V0(self.config["unfolding_path"], self.config["unfolding_id"],
+                    self.discriminator, self.generator, 
+                    noise_dim=self.config['latent_dim'], 
+                    batch_size=self.config['batch_size'])
+        else:
+            raise ValueError("gan_type must be 'inner' or 'outer'")
+        
 
         self.cgan.compile(self.discriminator_optimizer, self.disc_loss_fn, 
                           self.generator_optimizer, self.gen_loss_fn)
@@ -588,5 +602,5 @@ class TF_CGAN(JDSTModel):
         return history
 
     def predict(self, data):
-        noise = tf.random.normal(shape=(data.shape[0], self.latent_dim))
+        noise = tf.random.normal(shape=(tf.shape(data)[0], self.latent_dim))
         return self.generator.predict([data, noise], batch_size=1024)

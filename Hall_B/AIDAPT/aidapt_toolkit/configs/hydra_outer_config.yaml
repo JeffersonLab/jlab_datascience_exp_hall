@@ -17,6 +17,7 @@ model:
   id: tf_outer_cgan_v0
   unfolding_id: tf_cgan_v0
   unfolding_path: ./outputs/2024-10-30/16-05-52/cgan_model
+  gan_type: outer
   batch_size: 4096
   discriminator_layers:
   - - Dense

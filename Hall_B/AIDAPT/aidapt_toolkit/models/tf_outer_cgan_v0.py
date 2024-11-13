@@ -1,4 +1,4 @@
-from aidapt_toolkit.models.tf_cgan_v0 import TF_CGAN
+from aidapt_toolkit.models.tf_cgan_v0 import TF_CGAN_Keras
 from aidapt_toolkit.registration import make
 import tensorflow as tf
 import numpy as np
@@ -8,16 +8,16 @@ import logging
 
 logger = logging.getLogger("AIDAPT")
 
-class TF_OuterGAN_V0(TF_CGAN):
+class TF_OuterGAN_V0(TF_CGAN_Keras):
     """ Model for the OuterGAN. 
 
     
     """
-    def __init__(self, config: dict = None, name: str = 'outergan_v0') -> None:
-        super().__init__(config, name)
+    def __init__(self, unfolding_path, unfolding_id, discriminator, generator, noise_dim = 100, batch_size = 32) -> None:
+        super().__init__(discriminator, generator, noise_dim = 100, batch_size = 32)
 
-        self.unfolding_path = config['unfolding_path']
-        self.unfolding_id = config['unfolding_id']
+        self.unfolding_path = unfolding_path
+        self.unfolding_id = unfolding_id
 
         with open(f"{self.unfolding_path}/config.yaml", "r") as f:
             self.unfolding_config = yaml.safe_load(f)

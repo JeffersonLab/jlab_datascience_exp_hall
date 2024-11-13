@@ -26,6 +26,7 @@ dependencies = [
   "numpy",
   "matplotlib",
   "jlab_datascience_toolkit@git+https://github.com/JeffersonLab/jlab_datascience_core/",
+  "pandas",
 ]
 
 [project.urls]
