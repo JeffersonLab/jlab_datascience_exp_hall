@@ -16,9 +16,9 @@ lab2inv:
 model:
   id: tf_outer_cgan_v0
   unfolding_id: tf_cgan_v0
-  unfolding_path: ./outputs/2024-10-30/16-05-52/cgan_model
+  unfolding_path: ./outputs/trained_inner_gan_models/2024-12-05/cgan_model
   gan_type: outer
-  batch_size: 4096
+  batch_size: 10000
   discriminator_layers:
   - - Dense
     - units: 256
@@ -37,7 +37,7 @@ model:
   - beta_1: 0.5
     learning_rate: 1.0e-05
   discriminator_loss: 'BinaryCrossentropy'
-  epochs: 200000
+  epochs: 5
   generator_layers:
   - - Dense
     - units: 16
@@ -84,10 +84,10 @@ model:
   generator_optimizer:
   - Adam
   - beta_1: 0.5
-    learning_rate: 1.0e-05
+    learning_rate: 5.0e-05
   generator_loss: 'BinaryCrossentropy'
   image_shape: 4
-  label_shape: 5
+  label_shape: 4
   latent_dim: 100
 v_scaler:
   id: numpy_minmax_scaler
@@ -103,8 +103,27 @@ driver:
   save_path: ${hydra:runtime.output_dir}
 metrics:
   layer_specific_gradients: True
-  grad_frequency: 200
+  grad_frequency: 100
   chi2: True
-  chi2_frequency: 1000
+  chi2_frequency: 200
   disc_accuracy: True
-  acc_frequency: 500
+  acc_frequency: 100
+inner_generator_layers:
+- - Dense
+  - units: 128
+- - LeakyReLU
+  - negative_slope: 0.2
+- - BatchNormalization
+  - momentum: 0.8
+- - Dense
+  - units: 256
+- - LeakyReLU
+  - negative_slope: 0.2
+- - BatchNormalization
+  - momentum: 0.8
+- - Dense
+  - units: 512
+- - LeakyReLU
+  - negative_slope: 0.2
+- - BatchNormalization
+  - momentum: 0.8
