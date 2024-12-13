@@ -277,7 +277,7 @@ class TF_CGAN_Keras(tf.keras.Model):
             "generator_gradient_norm": self.generator_gradient_norm_tracker.result(),
         }
     
-        # If you want to track average losses over an epoch, instead of per batch,
+        # If want to track average losses over an epoch, instead of per batch,
         # use this return call.
         # return {
         #     "d_loss": self.d_loss_tracker.result(),
@@ -344,7 +344,6 @@ class TF_CGAN(JDSTModel):
         self.generator_optimizer = get_optimizer(
             *self.config['generator_optimizer'])
 
-        #print("self.config: ", self.config)
         #TODO: Make this configurable in the config
         self.gen_loss_fn = self.get_loss_function(self.config['generator_loss'])
         self.disc_loss_fn = self.get_loss_function(self.config['discriminator_loss'])
@@ -354,16 +353,7 @@ class TF_CGAN(JDSTModel):
         self.discriminator = self.build_discriminator()
         self.generator = self.build_generator()
 
-        #self.static_generator = self.build_static_generator()
-        '''
-        print("Generator layers:")
-        for layer in self.generator.layers:
-            print(layer.name)
 
-	print("Discriminator layers:")
-        for layer in self.discriminator.layers:
-            print(layer.name)
-        '''
         if self.config["gan_type"].lower() == "inner":
             self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
                                 noise_dim=self.config['latent_dim'], 
@@ -411,7 +401,6 @@ class TF_CGAN(JDSTModel):
         self.gen_loss_fn = self.config[f'generator_loss']
 
     def build_static_generator(self):
-        #label = tf.keras.layers.Input(shape=(4,))
         label = tf.keras.layers.Input(shape=(self.label_shape,))
         noise = tf.keras.layers.Input(shape=(self.latent_dim,))
         x = tf.keras.layers.Concatenate()([label, noise])
@@ -423,18 +412,14 @@ class TF_CGAN(JDSTModel):
         #)
         #label = sliced_label
         sliced_label = label
-        #print("sliced_label.shape: ", label.shape)
+
         # Concatenate the sliced label with noise
         x = tf.keras.layers.Concatenate()([sliced_label, noise])
-        #print("self.config['generator_layers']: ", self.config['generator_layers'])
-        #print("self.config['inner_generator_layers']: ", self.config['inner_generator_layers'])
         model = build_sequential_model(self.config['generator_layers'])       
         x = model(x)
 
-        #output = tf.keras.layers.Dense(self.image_shape, activation='tanh')(x)
         output = tf.keras.layers.Dense(self.label_shape, activation='tanh')(x)
-        #print("label: ", label)
-        #print("noise: ", noise)
+
         generator = tf.keras.models.Model(
             inputs=[label, noise], outputs=[output])
         return generator
@@ -443,30 +428,13 @@ class TF_CGAN(JDSTModel):
         label = tf.keras.layers.Input(shape=(self.label_shape,))
         noise = tf.keras.layers.Input(shape=(self.latent_dim,))
         x = tf.keras.layers.Concatenate()([label, noise])
-        '''
-        if self.config["gan_type"].lower() == "inner":
-            label = tf.keras.layers.Input(shape=(self.label_shape,))
-            x = tf.keras.layers.Concatenate()([label, noise])
-        elif self.config["gan_type"].lower() == "outer":
-            print("Building generator for outer GAN")
-            # Slice the label to exclude the last element, s (this is not included in the training)
-            #label = tf.keras.layers.Lambda(lambda x: x[:, :-1])(label)
-            sliced_label = tf.keras.layers.Lambda(lambda x: x[:, :-1])(
-                    label := tf.keras.layers.Input(shape=(self.label_shape,))
-            )
-            label = sliced_label
-            print("sliced_label.shape: ", label.shape)
-            # Concatenate the sliced label with noise
-            x = tf.keras.layers.Concatenate()([sliced_label, noise])
-        '''
-        #print("self.config['generator_layers']: ", self.config['generator_layers'])
+
         model = build_sequential_model(self.config['generator_layers'])
         
         x = model(x)
 
         output = tf.keras.layers.Dense(self.image_shape, activation='tanh')(x)
-        #print("label: ", label)
-        #print("noise: ", noise)
+
         generator = tf.keras.models.Model(
             inputs=[label, noise], outputs=[output])
         return generator

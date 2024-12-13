@@ -67,23 +67,13 @@ class TF_OuterGAN_V0(TF_CGAN_Keras):
     
     def train_step(self, data):
         inputs, real_images = data
-        #batch_size = tf.shape(real_images)[0]
         batch_size = tf.shape(inputs)[0]
         noise = tf.random.normal(shape=(batch_size, self.noise_dim))
 
-        #print("inputs.shape: ", inputs.shape)
-        #print("real_images.shape: ", real_images.shape)
-        #print("noise.shape: ", noise.shape)
         generated_images = self.generator((inputs, noise))
-        #print("generated_images.shape: ", generated_images.shape)
-        zeros_column = tf.zeros((batch_size, 1), dtype=generated_images.dtype)
-        generated_images_padded = tf.concat([generated_images, zeros_column], axis=1)
-        #print("generated_images_padded.shape: ", generated_images_padded.shape)
-        #generated_images = self.unfolding_model.predict_graph_mode(generated_images_padded)
+        #zeros_column = tf.zeros((batch_size, 1), dtype=generated_images.dtype)
+        #generated_images_padded = tf.concat([generated_images, zeros_column], axis=1)
         generated_images = self.unfolding_model.predict_graph_mode(generated_images)
-        #generated_images = self.unfolding_model.generator([generated_images, noise], training=False)
-
-        #tf.print("generated_images: ", generated_images)
 
         combined_images = tf.concat([generated_images, real_images], axis=0)
         combined_inputs = tf.concat([inputs, inputs], axis=0)
@@ -135,20 +125,9 @@ class TF_OuterGAN_V0(TF_CGAN_Keras):
         # of the discriminator)!
         with tf.GradientTape() as tape:
             generated_images = self.generator((inputs, random_latent_vectors))
-            #generated_images = self.unfolding_model.generator(generated_images)
-            #generated_images = self.unfolding_model.generator([inputs, noise])#, training=False)
-            #zeros_column = tf.zeros((batch_size, 1), dtype=generated_images.dtype)
-            #generated_images_padded = tf.concat([generated_images, zeros_column], axis=1)
-            #generated_images = self.unfolding_model.predict_graph_mode(generated_images_padded)
-            generated_images = self.unfolding_model.predict_graph_mode(generated_images)
             predictions = self.discriminator((inputs, generated_images))
-            #print("predictions: ", predictions)
-            #predictions = self.discriminator((inputs, self.generator((inputs, random_latent_vectors))))
             g_loss = self.g_loss_fn(misleading_labels, predictions)
-            #print("g_loss: ", g_loss)
-            #print("predictions: ", predictions)
         generator_gradients = tape.gradient(g_loss, self.generator.trainable_weights)
-        #print("grads: ", grads)
         self.g_optimizer.apply_gradients(zip(generator_gradients, self.generator.trainable_weights))
 
         gen_layer_grad_norms = []

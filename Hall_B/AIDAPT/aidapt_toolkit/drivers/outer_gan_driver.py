@@ -48,7 +48,8 @@ def run(config):
 
     v_invariants = lab2inv_prep.run(v_data)
     d_invariants = lab2inv_prep.run(d_data)
-
+ 
+    v_invariants = v_invariants[:, :-1]
     d_invariants = d_invariants[:, :-1]
 
     v_scaler.train(v_invariants)
@@ -63,7 +64,7 @@ def run(config):
 
     batches_per_epoch = len(d_invariants_scaled) // config['model']['batch_size']
     batches_per_epoch_remainder = len(d_invariants_scaled) % config['model']['batch_size']
-    print('batches_per_epoch_remainder: ', batches_per_epoch_remainder)
+    #print('batches_per_epoch_remainder: ', batches_per_epoch_remainder)
     if batches_per_epoch_remainder > 0:
         batches_per_epoch += 1
         
@@ -104,7 +105,57 @@ def run(config):
     ax.legend()
     fig.tight_layout()
     fig.savefig(os.path.join(save_path, "distributions.png"))
+    '''
+    fig, axs = plt.subplots(2, 2)
+    axs = axs.flat
+    output_names = ("sppim", "spipm", "tpip", "alpha")
+    for i, (ax, name) in enumerate(zip(axs, output_names)):
+        ax.hist(
+            d_results_scaled[:, i],
+            bins=100,
+            histtype="step",
+            color="blue",
+            density=True,
+            label="GAN",
+        )
+        ax.hist(
+            d_invariants_scaled[:, i],
+            bins=100,
+            histtype="step",
+            color="orange",
+            density=True,
+            label="Detector",
+        )
+        ax.set_xlabel(name)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(os.path.join(save_path, "distributions_scaled.png"))
 
+    fig, axs = plt.subplots(2, 2)
+    axs = axs.flat
+    output_names = ("sppim", "spipm", "tpip", "alpha")
+    for i, (ax, name) in enumerate(zip(axs, output_names)):
+        ax.hist(
+            d_invariants[:, i],
+            bins=100,
+            histtype="step",
+            color="blue",
+            density=True,
+            label="Detector",
+        )
+        ax.hist(
+            v_invariants[:, i],
+            bins=100,
+            histtype="step",
+            color="orange",
+            density=True,
+            label="Vertex",
+        )
+        ax.set_xlabel(name)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(os.path.join(save_path, "distributions_before_training.png"))
+    '''
     # Plot reconstruction errors
     fig, ax = plt.subplots(1, 1)
     p_rec_gan = np.sqrt(
