@@ -10,6 +10,13 @@ detector_parser:
   - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_1.npy
   - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_2.npy
   - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_3.npy
+detector_rec_parser:
+  id: aidapt_numpy_reader_v0
+  filepaths:
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_0.npy
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_1.npy
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_2.npy
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_3.npy
 lab2inv: 
   id: lab_variables_to_invariants
   MP: 0.93827
@@ -18,7 +25,7 @@ model:
   unfolding_id: tf_cgan_v0
   unfolding_path: ./outputs/trained_inner_gan_models/2024-12-05/cgan_model
   gan_type: outer
-  batch_size: 10000
+  batch_size: 2048
   discriminator_layers:
   - - Dense
     - units: 256
@@ -37,7 +44,8 @@ model:
   - beta_1: 0.5
     learning_rate: 1.0e-05
   discriminator_loss: 'BinaryCrossentropy'
-  epochs: 5
+  #discriminator_loss: 'MeanSquaredError'
+  epochs: 200000
   generator_layers:
   - - Dense
     - units: 16
@@ -84,9 +92,10 @@ model:
   generator_optimizer:
   - Adam
   - beta_1: 0.5
-    learning_rate: 5.0e-05
+    learning_rate: 1.0e-05
   generator_loss: 'BinaryCrossentropy'
-  image_shape: 4
+  #generator_loss: 'MeanSquaredError'
+  image_shape: 1
   label_shape: 4
   latent_dim: 100
 v_scaler:
@@ -103,27 +112,8 @@ driver:
   save_path: ${hydra:runtime.output_dir}
 metrics:
   layer_specific_gradients: True
-  grad_frequency: 100
+  grad_frequency: 400
   chi2: True
-  chi2_frequency: 200
+  chi2_frequency: 800
   disc_accuracy: True
-  acc_frequency: 100
-inner_generator_layers:
-- - Dense
-  - units: 128
-- - LeakyReLU
-  - negative_slope: 0.2
-- - BatchNormalization
-  - momentum: 0.8
-- - Dense
-  - units: 256
-- - LeakyReLU
-  - negative_slope: 0.2
-- - BatchNormalization
-  - momentum: 0.8
-- - Dense
-  - units: 512
-- - LeakyReLU
-  - negative_slope: 0.2
-- - BatchNormalization
-  - momentum: 0.8
+  acc_frequency: 400

@@ -11,7 +11,8 @@ import logging
 
 logging.getLogger("matplotlib").setLevel(logging.INFO)
 
-
+#hydra_basic_config
+#hydra_outer_config
 @hydra.main(
     version_base=None, config_path="../configs", config_name="hydra_outer_config"
 )
@@ -29,6 +30,11 @@ def run(config):
         config=config["detector_parser"],
         name="detector_parser",
     )
+    #detector_folding_parser = aidapt_toolkit.data_parsers.make(
+    #    config["detector_folding_parser"]["id"],
+    #    config=config["detector_folding_parser"],
+    #    name="detector_folding_parser",
+    #)
     lab2inv_prep = aidapt_toolkit.data_prep.make(
         config["lab2inv"]["id"],
         config=config["lab2inv"],
@@ -45,20 +51,27 @@ def run(config):
 
     v_data = vertex_parser.load_data()
     d_data = detector_parser.load_data()
+    #d_folding_data = detector_folding_parser.load_data()
 
     v_invariants = lab2inv_prep.run(v_data)
     d_invariants = lab2inv_prep.run(d_data)
+    #print("v_invariants[:,4]: ", v_invariants[:,4])
+    #d_folding_invariants = lab2inv_prep.run(d_folding_data)
  
-    v_invariants = v_invariants[:, :-1]
-    d_invariants = d_invariants[:, :-1]
+    #v_invariants = v_invariants[:, :-1]
+    #d_invariants = d_invariants[:, :-1]
+    #d_gen_invariants = d_gen_invariants[:, :-1]
 
     v_scaler.train(v_invariants)
     d_scaler.train(d_invariants)
+    #d_scaler.train(d_folding_invariants)
 
     v_invariants_scaled = v_scaler.run(v_invariants)
+    #v_invariants_scaled = v_invariants_scaled[: len(d_invariants)]
     d_invariants_scaled = d_scaler.run(d_invariants)
+    #d_folding_invariants_scaled = d_scaler.run(d_folding_invariants)
     # Scale (based on phase space data!)
-        # These are commpletely different files... Do we want to load them and calculate
+        # These are completely different files... Do we want to load them and calculate
         # the mean and standard deviation or do we want to just have them in the config?
         # We can do the latter to start
 
@@ -76,10 +89,14 @@ def run(config):
                     config['metrics']['chi2'], config['metrics']['chi2_frequency'],
                     config['metrics']['disc_accuracy'], config['metrics']['acc_frequency'])
     
-    d_results_scaled = model.predict(v_invariants_scaled)
-
+    v_s_scaled = v_invariants_scaled[:, -1]
+    #d_results_scaled = model.predict(v_invariants_scaled)
+    unf_results_scaled = model.predict(v_s_scaled)
+    d_results_scaled = model.predict_full(v_invariants_scaled)
+    #d_results = d_results_scaled
     d_results = d_scaler.reverse(d_results_scaled)
-
+    unf_results = d_scaler.reverse(unf_results_scaled)
+    
     # Plot distributions
     fig, axs = plt.subplots(2, 2)
     axs = axs.flat
@@ -102,10 +119,19 @@ def run(config):
             label="Detector",
         )
         ax.set_xlabel(name)
+        ax.hist(
+            unf_results[:, i],
+            bins=100,
+            histtype="step",
+            color="green",
+            density=True,
+            label="Unf_GAN",
+        )
+        ax.set_xlabel(name)
     ax.legend()
     fig.tight_layout()
     fig.savefig(os.path.join(save_path, "distributions.png"))
-    '''
+    
     fig, axs = plt.subplots(2, 2)
     axs = axs.flat
     output_names = ("sppim", "spipm", "tpip", "alpha")
@@ -130,7 +156,7 @@ def run(config):
     ax.legend()
     fig.tight_layout()
     fig.savefig(os.path.join(save_path, "distributions_scaled.png"))
-
+    
     fig, axs = plt.subplots(2, 2)
     axs = axs.flat
     output_names = ("sppim", "spipm", "tpip", "alpha")
@@ -155,7 +181,7 @@ def run(config):
     ax.legend()
     fig.tight_layout()
     fig.savefig(os.path.join(save_path, "distributions_before_training.png"))
-    '''
+    
     # Plot reconstruction errors
     fig, ax = plt.subplots(1, 1)
     p_rec_gan = np.sqrt(

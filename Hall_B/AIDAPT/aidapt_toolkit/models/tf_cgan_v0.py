@@ -353,7 +353,10 @@ class TF_CGAN(JDSTModel):
         self.discriminator = self.build_discriminator()
         self.generator = self.build_generator()
 
-
+        self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
+                                noise_dim=self.config['latent_dim'], 
+                                batch_size=self.config['batch_size'])
+        
         if self.config["gan_type"].lower() == "inner":
             self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
                                 noise_dim=self.config['latent_dim'], 
@@ -367,8 +370,10 @@ class TF_CGAN(JDSTModel):
                     self.discriminator, self.generator, 
                     noise_dim=self.config['latent_dim'], 
                     batch_size=self.config['batch_size'])
+            #self.unfolding_model.static_generator = self.build_static_generator()
         else:
             raise ValueError("gan_type must be 'inner' or 'outer'")
+        
         
 
         self.cgan.compile(self.discriminator_optimizer, self.disc_loss_fn, 
@@ -401,14 +406,15 @@ class TF_CGAN(JDSTModel):
         self.gen_loss_fn = self.config[f'generator_loss']
 
     def build_static_generator(self):
-        label = tf.keras.layers.Input(shape=(self.label_shape,))
+        label_shape = 4
+        label = tf.keras.layers.Input(shape=(label_shape,))
         noise = tf.keras.layers.Input(shape=(self.latent_dim,))
         x = tf.keras.layers.Concatenate()([label, noise])
 
-        # Slice the label to exclude the last element, s (this is not included in the training)
+        # Slice the label to exclude the last element, s
         #label = tf.keras.layers.Lambda(lambda x: x[:, :-1])(label)
         #sliced_label = tf.keras.layers.Lambda(lambda x: x[:, :-1])(
-        #        label := tf.keras.layers.Input(shape=(self.label_shape,))
+        #        label := tf.keras.layers.Input(shape=(label_shape,))
         #)
         #label = sliced_label
         sliced_label = label
@@ -418,14 +424,16 @@ class TF_CGAN(JDSTModel):
         model = build_sequential_model(self.config['generator_layers'])       
         x = model(x)
 
-        output = tf.keras.layers.Dense(self.label_shape, activation='tanh')(x)
+        output = tf.keras.layers.Dense(label_shape, activation='tanh')(x)
 
         generator = tf.keras.models.Model(
             inputs=[label, noise], outputs=[output])
         return generator
 
     def build_generator(self):
-        label = tf.keras.layers.Input(shape=(self.label_shape,))
+        label_shape = 1
+        image_shape = 4
+        label = tf.keras.layers.Input(shape=(label_shape,))
         noise = tf.keras.layers.Input(shape=(self.latent_dim,))
         x = tf.keras.layers.Concatenate()([label, noise])
 
@@ -433,17 +441,26 @@ class TF_CGAN(JDSTModel):
         
         x = model(x)
 
-        output = tf.keras.layers.Dense(self.image_shape, activation='tanh')(x)
+        output = tf.keras.layers.Dense(image_shape, activation='tanh')(x)
 
         generator = tf.keras.models.Model(
             inputs=[label, noise], outputs=[output])
         return generator
 
     def build_discriminator(self):
-        label = tf.keras.layers.Input(shape=(self.label_shape,))
-        image = tf.keras.layers.Input(shape=(self.image_shape,))
+        label_shape = 4
+        image_shape = 4
+        #label = tf.keras.layers.Input(shape=(self.label_shape,))
+        #image = tf.keras.layers.Input(shape=(self.image_shape,))
+        #label = tf.keras.layers.Input(shape=(label_shape,))
+        #image = tf.keras.layers.Input(shape=(image_shape,))
+        label = tf.keras.layers.Input(shape=(label_shape,))
+        image = tf.keras.layers.Input(shape=(image_shape,))
+        real_image = tf.keras.layers.Input(shape=(image_shape,))
+        fake_image = tf.keras.layers.Input(shape=(image_shape,))
 
         x = tf.keras.layers.Concatenate()([label, image])
+        #x = tf.keras.layers.Concatenate()([fake_image, real_image])
 
         model = build_sequential_model(self.config['discriminator_layers'])
         x = model(x)
@@ -451,6 +468,8 @@ class TF_CGAN(JDSTModel):
         output = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         discriminator = tf.keras.models.Model(
             inputs=[label, image], outputs=output)
+        #discriminator = tf.keras.models.Model(
+        #    inputs=images, outputs=output)
         return discriminator
 
     def get_info(self):
@@ -469,14 +488,41 @@ class TF_CGAN(JDSTModel):
         self.set_model_variables()
 
         # Build correct network before loading weights
+        self.generator = self.build_generator()
+        #self.static_generator = self.build_static_generator()
+        self.discriminator = self.build_discriminator()
+
+        # Load network weights
+        self.generator.load_weights(os.path.join(filepath, 'generator.weights.h5'))
+        #self.static_generator.load_weights(os.path.join(filepath, 'generator.weights.h5'))
+        self.discriminator.load_weights(os.path.join(filepath, 'discriminator.weights.h5'))
+
+        self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
+                            noise_dim=self.config['latent_dim'], 
+                            batch_size=self.config['batch_size'])
+
+        self.cgan.compile(self.discriminator_optimizer, self.disc_loss_fn, 
+                          self.generator_optimizer, self.gen_loss_fn)
+        # TODO load optimizers specified in config...
+    
+    def load_inner_GAN(self, filepath):
+        # Set all configuration settings
+        with open(os.path.join(filepath, 'config.yaml'), 'r') as f:
+            self.config.update(yaml.safe_load(f))
+        self.set_model_variables()
+
+        # Build correct network before loading weights
         #self.generator = self.build_generator()
         self.static_generator = self.build_static_generator()
-        self.discriminator = self.build_discriminator()
+        self.static_discriminator = self.build_discriminator()
 
         # Load network weights
         #self.generator.load_weights(os.path.join(filepath, 'generator.weights.h5'))
         self.static_generator.load_weights(os.path.join(filepath, 'generator.weights.h5'))
-        self.discriminator.load_weights(os.path.join(filepath, 'discriminator.weights.h5'))
+        self.static_discriminator.load_weights(os.path.join(filepath, 'discriminator.weights.h5'))
+
+        self.static_generator.trainable = False
+        self.static_discriminator.trainable = False
 
         self.cgan = TF_CGAN_Keras(self.discriminator, self.static_generator, 
                             noise_dim=self.config['latent_dim'], 
@@ -587,10 +633,13 @@ class TF_CGAN(JDSTModel):
 
         # Add "chi_square_monitor" to "callbacks_list" if set as "True" in config file
         if (make_chi2_plots):
+            #print("self.config[gan_type]: ", self.config["gan_type"].lower())
             chi_square_monitor = gm.ChiSquareMonitor(self.cgan_model, labels,
                                                  target_distributions, output_path,
                                                  latent_dim, d_scaler, output_path,
-                                                 frequency=chi2_frequency)
+                                                 frequency=chi2_frequency, 
+                                                 gan_type=self.config["gan_type"].lower()
+                                                 )
             callbacks_list.append(chi_square_monitor)
 
         # Add "disc_acc_monitor" to "callbacks_list" if set as "True" in config file
@@ -600,7 +649,8 @@ class TF_CGAN(JDSTModel):
                                                   frequency=accuracy_frequency,
                                                   training_data=(labels, images),
                                                   batch_size=self.batch_size,
-                                                  noise_dim=self.latent_dim
+                                                  noise_dim=self.latent_dim,
+                                                  gan_type=self.config["gan_type"].lower()
                                                   )
             callbacks_list.append(disc_acc_monitor)
 
@@ -626,9 +676,23 @@ class TF_CGAN(JDSTModel):
     def predict(self, data):
         noise = tf.random.normal(shape=(data.shape[0], self.latent_dim))
         return self.generator.predict([data, noise], batch_size=1024)
+
+    def predict_full(self, data):
+        v_s = data[:,4]
+        unf_gen_noise = tf.random.normal(shape=(v_s.shape[0], self.latent_dim))
+        unf_gen_output = self.generator.predict([v_s, unf_gen_noise], batch_size=1024)
+
+        inner_gen_noise = tf.random.normal(shape=(unf_gen_output.shape[0], self.latent_dim))
+        inner_generated_images = self.cgan.unfolding_model.static_generator.predict([unf_gen_output, inner_gen_noise], batch_size=1024)
+        #inner_generated_images = self.cgan.unfolding_model.static_generator([unf_gen_output, inner_gen_noise], training=False)
+
+        return inner_generated_images
     
     def predict_graph_mode(self, data):
         noise = tf.random.normal(shape=(tf.shape(data)[0], self.latent_dim))
         #print("data: ", data)
         #print("noise: ", noise)
         return self.static_generator([data, noise], training=False)
+    
+    
+

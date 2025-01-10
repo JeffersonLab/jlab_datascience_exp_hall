@@ -77,7 +77,7 @@ class GradientMonitor(tf.keras.callbacks.Callback):
     def plot_gradients(self):
         hist = self.history
 
-        print("hist.items(): ", hist.items())
+        #print("hist.items(): ", hist.items())
 
         # Plot layer-specific gradient norms
         disc_layer_grad_norm_name_arr = []
@@ -175,8 +175,8 @@ class GradientMonitor(tf.keras.callbacks.Callback):
         #print("hist: ", hist)
         plt.figure(figsize=(14, 6))
         plt.subplot(1, 2, 1)
-        plt.semilogy(np.array(hist['g_loss'])*4, label='Generator')
-        plt.semilogy(np.array(hist['d_loss'])*4, label='Discriminator')
+        plt.semilogy(np.array(hist['g_loss'])*4, label='Generator', alpha=0.75)
+        plt.semilogy(np.array(hist['d_loss'])*4, label='Discriminator', alpha=0.75)
         #plt.axhline(y=1, linestyle=':', color='k')
         plt.ylabel('Loss')
         plt.xlabel('Epochs')
@@ -187,8 +187,8 @@ class GradientMonitor(tf.keras.callbacks.Callback):
         
         # Plot gradient norms
         plt.subplot(1, 2, 2)
-        plt.plot(discriminator_gradient_norms, label='Discriminator', alpha=0.75)
         plt.plot(generator_gradient_norms, label='Generator', alpha=0.75)
+        plt.plot(discriminator_gradient_norms, label='Discriminator', alpha=0.75)
         plt.ylabel('Gradient Norm')
         plt.xlabel('Epoch')
         plt.legend()
@@ -199,7 +199,7 @@ class GradientMonitor(tf.keras.callbacks.Callback):
 
 
 class ChiSquareMonitor(tf.keras.callbacks.Callback):
-    def __init__(self, monitored_model, data, target_distributions, output_path, latent_dim, d_scaler, out_dir, frequency):
+    def __init__(self, monitored_model, data, target_distributions, output_path, latent_dim, d_scaler, out_dir, frequency, gan_type):
         super(ChiSquareMonitor, self).__init__()
         self.monitored_model = monitored_model
         self.data = data
@@ -211,6 +211,7 @@ class ChiSquareMonitor(tf.keras.callbacks.Callback):
         self.out_dir = out_dir
         self.chi2_values = []
         self.noise_dim = latent_dim
+        self.gan_type = gan_type
 
     def calculate_chi2(self, generated_distributions, target_distributions, bins=100):
         #chi2 = np.sum((target_distributions - generated_distributions)**2 / target_distributions)
@@ -234,11 +235,24 @@ class ChiSquareMonitor(tf.keras.callbacks.Callback):
         
     def on_epoch_end(self, epoch, logs=None):
         if (epoch + 1) % self.frequency == 0:
-            noise = tf.random.normal(shape=(self.data.shape[0], self.noise_dim))
+            #print("self.gan_type: ", self.gan_type)
+            if (self.gan_type == "outer"):
+                vertex_s = self.data[:,4]
+                #print("vertex_s: ", vertex_s)
+                #print("vertex_s.shape: ", vertex_s.shape)
+                #print("vertex_s.shape[0]: ", vertex_s.shape[0])
+                noise = tf.random.normal(shape=(vertex_s.shape[0], self.noise_dim))
 
-            # Run prediction to generate GAN's output distribution
-            generated_distributions = self.monitored_model.generator.predict([self.data, noise], batch_size=1024)
-            generated_distributions = self.d_scaler.reverse(generated_distributions)
+                # Run prediction to generate GAN's output distribution
+                generated_distributions = self.monitored_model.generator.predict([vertex_s, noise], batch_size=1024)
+                
+                generated_distributions = self.d_scaler.reverse(generated_distributions)
+            elif (self.gan_type == "inner"):
+                noise = tf.random.normal(shape=(self.data.shape[0], self.noise_dim))
+
+                # Run prediction to generate GAN's output distribution
+                generated_distributions = self.monitored_model.generator.predict([self.data, noise], batch_size=1024)
+                generated_distributions = self.d_scaler.reverse(generated_distributions)
 
             # Calculate chi^2 between generated and target distributions
             chi2_value = self.calculate_chi2(generated_distributions, self.target_distributions)
@@ -277,7 +291,7 @@ class ChiSquareMonitor(tf.keras.callbacks.Callback):
         return self.chi2_values
 
 class AccuracyMonitor(tf.keras.callbacks.Callback):
-    def __init__(self, input_model, out_dir, frequency, training_data, batch_size, noise_dim):
+    def __init__(self, input_model, out_dir, frequency, training_data, batch_size, noise_dim, gan_type):
         super().__init__()
         self.input_model = input_model
         self.out_dir = out_dir
@@ -287,6 +301,7 @@ class AccuracyMonitor(tf.keras.callbacks.Callback):
         self.training_data = training_data  # (labels, images)
         self.batch_size = batch_size
         self.noise_dim = noise_dim
+        self.gan_type = gan_type
 
         self.history = {
             "accuracy": [],
@@ -315,17 +330,29 @@ class AccuracyMonitor(tf.keras.callbacks.Callback):
     def compute_predictions(self):
         # Unpack training data
         labels, images = self.training_data
-
-        labels = tf.convert_to_tensor(labels, dtype=tf.float32)
-        images = tf.convert_to_tensor(images, dtype=tf.float32)
-
+        #print("labels.shape: ", labels.shape)
+        #print("images.shape: ", images.shape)
         batch_size = self.batch_size
 
         # Generate noise
         noise = tf.random.normal([batch_size, self.noise_dim])
 
-        # Generate fake images
-        generated_images = self.model.generator([labels[:batch_size], noise], training=False)
+        if (self.gan_type == "outer"):
+            vertex_s = labels[:,4]
+            vertex_s = tf.convert_to_tensor(vertex_s, dtype=tf.float32)
+            labels = labels[:,:-1]
+            labels = tf.convert_to_tensor(labels, dtype=tf.float32)
+            images = images[:,:-1]
+            images = tf.convert_to_tensor(images, dtype=tf.float32)
+            # Generate fake images
+            #generated_images = self.model.generator([labels[:batch_size], noise], training=False)
+            generated_images = self.model.generator([vertex_s[:batch_size], noise], training=False)
+            #print("generated_images.shape: ", generated_images.shape)
+        elif (self.gan_type == "inner"):
+            labels = tf.convert_to_tensor(labels, dtype=tf.float32)
+            images = tf.convert_to_tensor(images, dtype=tf.float32)
+            # Generate fake images
+            generated_images = self.model.generator([labels[:batch_size], noise], training=False)
 
         # Combine real and fake images and labels
         combined_images = tf.concat([images[:batch_size], generated_images], axis=0)
