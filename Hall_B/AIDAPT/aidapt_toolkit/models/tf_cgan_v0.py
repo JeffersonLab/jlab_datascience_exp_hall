@@ -3,6 +3,7 @@ from jlab_datascience_toolkit.core.jdst_model import JDSTModel
 import aidapt_toolkit.utils.gradient_monitor as gm
 from tensorflow.keras.callbacks import Callback
 from omegaconf import OmegaConf
+from aidapt_toolkit.registration import make
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -10,6 +11,9 @@ import inspect
 import yaml
 import os
 import copy
+
+#Use to force running in eager mode
+#tf.config.run_functions_eagerly(True)
 
 def get_optimizer(type: str = 'Adam', optimizer_config: dict = None):
     """Gets a non-legacy Optimizer instance
@@ -118,8 +122,6 @@ class TF_CGAN_Keras(tf.keras.Model):
         self.g_loss_tracker = tf.keras.metrics.Mean(name='g_loss')
         self.discriminator_gradient_norm_tracker = tf.keras.metrics.Mean(name='discriminator_gradient_norm')
         self.generator_gradient_norm_tracker = tf.keras.metrics.Mean(name='generator_gradient_norm')
-        #self.discriminator_out_layer_gradient_norm_tracker = tf.keras.metrics.Mean(name='discriminator_out_layer_gradient_norm')
-        #self.generator_out_layer_gradient_norm_tracker = tf.keras.metrics.Mean(name='generator_out_layer_gradient_norm')
         self.gradient_monitor = None
         self.generator_gradients = None
         self.discriminator_gradients = None
@@ -130,8 +132,6 @@ class TF_CGAN_Keras(tf.keras.Model):
 
         # Initialize discriminator accuracy trackers 
         self.disc_acc_tracker = tf.keras.metrics.Mean(name='disc_acc')
-        #self.true_labels_tracker = tf.keras.metrics.Mean(name='true_lables')
-        #self.predicted_scores_tracker = tf.keras.metrics.Mean(name='predicted_scores')
         self.true_labels_list = []
         self.predicted_scores_list = []
 
@@ -143,7 +143,6 @@ class TF_CGAN_Keras(tf.keras.Model):
                 if isinstance(layer, tf.keras.Sequential):
                     disc_layer_counter += 1
                     for sub_layer in layer.trainable_weights:
-                        #print("sub_layer.path: ", sub_layer.path)
                         self.discriminator_layer_gradient_norms_tracker[f'disc_{sub_layer.path}'] = tf.keras.metrics.Mean(name=f'disc_{sub_layer.path}_grad_norm')
                 else:
                     for sub_layer in layer.trainable_weights:
@@ -171,10 +170,41 @@ class TF_CGAN_Keras(tf.keras.Model):
         self.d_loss_fn = d_loss_fn
         self.g_loss_fn = g_loss_fn
 
+    @tf.function
+    def pretrain_step(self, vertex_batch, ps_batch, loss_fn):
+        if len(vertex_batch.shape) == 1:
+            vertex_batch = tf.reshape(vertex_batch, [-1, 1])
+        batch_size = tf.shape(vertex_batch)[0]
+        random_noise = tf.random.normal(shape=(batch_size, self.noise_dim))
+        with tf.GradientTape() as tape:
+            generated_data = self.generator([vertex_batch, random_noise], training=True)
+            loss = loss_fn(ps_batch, generated_data)
+        grads = tape.gradient(loss, self.generator.trainable_weights)
+        self.optimizer.apply_gradients(zip(grads, self.generator.trainable_weights))
+        return loss
+
+    def pretrain_outer_generator(self, realistic_vertex_data, ps_vertex_data, epochs=10, batch_size=2048):
+        """
+        Pre-trains `outer_generator` to produce outputs resembling the phasespace data
+        on which the inner GAN was trained.
+        """
+        print("Running pre-training of unfolding generator")
+        vertex_s = ps_vertex_data[:,4]
+        ps_vertex_data = ps_vertex_data[:,:4]
+        dataset = tf.data.Dataset.from_tensor_slices((vertex_s, ps_vertex_data))
+        dataset = dataset.batch(batch_size)
+        pretrain_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-6)
+        mse_loss_fn = tf.keras.losses.MeanSquaredError()
+        for epoch in range(epochs):
+            for step, (vertex_batch, ps_batch) in enumerate(dataset):
+                loss = self.pretrain_step(vertex_batch, ps_batch, mse_loss_fn)
+            #print(f"Epoch {epoch + 1}/{epochs} of unfolding generator pre-training, Loss: {loss.numpy():.4f}")
+
     def train_step(self, data):
         inputs, real_images = data
-        batch_size = tf.shape(real_images)[0]
-        noise = tf.random.normal(shape=(batch_size, self.noise_dim))
+        batch_size = tf.shape(inputs)[0]
+
+        noise = tf.random.normal(shape=(batch_size, self.noise_dim))#, stddev=10)
 
         generated_images = self.generator((inputs, noise))
 
@@ -182,7 +212,7 @@ class TF_CGAN_Keras(tf.keras.Model):
         combined_inputs = tf.concat([inputs, inputs], axis=0)
 
         # Label real images and fake images
-        labels = tf.concat([tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))], axis=0)
+        labels = tf.concat([tf.zeros((batch_size, 1)), tf.ones((batch_size, 1))], axis=0)
 
         # Store the true labels for accuracy calculation before adding noise  
         true_labels = labels
@@ -220,10 +250,10 @@ class TF_CGAN_Keras(tf.keras.Model):
         discriminator_agg_gradient_norm = tf.sqrt(sum([tf.reduce_sum(tf.square(g)) for g in discriminator_gradients]))
         
         # Sample random points in the latent space
-        random_latent_vectors = tf.random.normal(shape=(batch_size, self.noise_dim))
+        random_latent_vectors = tf.random.normal(shape=(batch_size, self.noise_dim))#, stddev=10)
 
         # Assemble labels that say "all real images"
-        misleading_labels = tf.zeros((batch_size, 1))
+        misleading_labels = tf.ones((batch_size, 1))
 
         # Train the generator (note that we should *not* update the weights
         # of the discriminator)!
@@ -261,10 +291,6 @@ class TF_CGAN_Keras(tf.keras.Model):
             gen_item_counter += 1
 
         self.disc_acc_tracker.update_state(accuracy)
-        #self.predicted_scores_tracker.update_state(predicted_scores)
-        #self.true_labels_tracker.update_state(true_labels)
-        #self.true_labels_list.extend(true_labels.numpy().flatten())
-        #self.predicted_scores_list.extend(predictions.numpy().flatten())
         self.true_labels_list.append(true_labels)
         self.predicted_scores_list.append(predictions)
         # ------------------------------------------------------------------------------------ #
@@ -277,18 +303,13 @@ class TF_CGAN_Keras(tf.keras.Model):
             "generator_gradient_norm": self.generator_gradient_norm_tracker.result(),
         }
     
-        # If want to track average losses over an epoch, instead of per batch,
-        # use this return call.
-        # return {
-        #     "d_loss": self.d_loss_tracker.result(),
-        #     "g_loss": self.g_loss_tracker.result(),
-        # }
+    '''
     def call(self, inputs):
         batch_size = tf.shape(inputs)[0]
         noise = tf.random.normal(shape=(batch_size, self.noise_dim))
         generated_images = self.generator([inputs, noise])  # Generator forward pass
         return generated_images
-
+    '''
 class TF_CGAN(JDSTModel):
     def __init__(self, config: dict = None, name: str = 'unfolding_model_v1') -> None:
         """_summary_
@@ -352,25 +373,46 @@ class TF_CGAN(JDSTModel):
 
         self.discriminator = self.build_discriminator()
         self.generator = self.build_generator()
+        self.static_discriminator = self.build_static_discriminator()
 
-        self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
-                                noise_dim=self.config['latent_dim'], 
-                                batch_size=self.config['batch_size'])
+        #self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
+        #                        noise_dim=self.config['latent_dim'], 
+        #                        batch_size=self.config['batch_size'])
         
         if self.config["gan_type"].lower() == "inner":
             self.cgan = TF_CGAN_Keras(self.discriminator, self.generator, 
                                 noise_dim=self.config['latent_dim'], 
                                 batch_size=self.config['batch_size'])
+            self.cgan_model = TF_CGAN_Keras(self.discriminator, self.generator)
         elif self.config["gan_type"].lower() == "outer":
-            #print(self.config["unfolding_path"])
-            assert "unfolding_path" in self.config
-            assert "unfolding_id" in self.config
+
+            self.cgan_model = TF_CGAN_Keras(self.discriminator, self.generator)
+
+            assert "folding_path" in self.config
+            assert "folding_id" in self.config
+            
+            #self.unfolding_model.static_generator = self.build_static_generator()
+
+            # Load the trained folding GAN (inner)
+            self.folding_path = self.config["folding_path"]
+            self.folding_id = self.config["folding_id"]
+
+            with open(f"{self.folding_path}/config.yaml", "r") as f:
+                self.folding_config = yaml.safe_load(f)
+
+            self.folding_model = make(self.folding_id, config=self.folding_config)
+            self.folding_model.load_inner_GAN(self.folding_path)
+
+            # This assumes InnerGAN is a TF_CGAN...
+            self.folding_model.cgan.trainable = False
+
             from aidapt_toolkit.models.tf_outer_cgan_v0 import TF_OuterGAN_V0
-            self.cgan = TF_OuterGAN_V0(self.config["unfolding_path"], self.config["unfolding_id"],
-                    self.discriminator, self.generator, 
+            self.cgan = TF_OuterGAN_V0(self.discriminator, self.generator, 
+                    self.folding_model,
                     noise_dim=self.config['latent_dim'], 
                     batch_size=self.config['batch_size'])
-            #self.unfolding_model.static_generator = self.build_static_generator()
+            
+            #self.folding_model = TF_CGAN_Keras(self.discriminator, self.generator)
         else:
             raise ValueError("gan_type must be 'inner' or 'outer'")
         
@@ -379,7 +421,7 @@ class TF_CGAN(JDSTModel):
         self.cgan.compile(self.discriminator_optimizer, self.disc_loss_fn, 
                           self.generator_optimizer, self.gen_loss_fn)
 
-        self.cgan_model = TF_CGAN_Keras(self.discriminator, self.generator)
+        #self.cgan_model = TF_CGAN_Keras(self.discriminator, self.generator)
         
         # self.discriminator.compile(loss='mse', 
         #                            optimizer=self.discriminator_optimizer, 
@@ -411,16 +453,6 @@ class TF_CGAN(JDSTModel):
         noise = tf.keras.layers.Input(shape=(self.latent_dim,))
         x = tf.keras.layers.Concatenate()([label, noise])
 
-        # Slice the label to exclude the last element, s
-        #label = tf.keras.layers.Lambda(lambda x: x[:, :-1])(label)
-        #sliced_label = tf.keras.layers.Lambda(lambda x: x[:, :-1])(
-        #        label := tf.keras.layers.Input(shape=(label_shape,))
-        #)
-        #label = sliced_label
-        sliced_label = label
-
-        # Concatenate the sliced label with noise
-        x = tf.keras.layers.Concatenate()([sliced_label, noise])
         model = build_sequential_model(self.config['generator_layers'])       
         x = model(x)
 
@@ -445,22 +477,22 @@ class TF_CGAN(JDSTModel):
 
         generator = tf.keras.models.Model(
             inputs=[label, noise], outputs=[output])
+
         return generator
 
     def build_discriminator(self):
-        label_shape = 4
+        label_shape = 1
         image_shape = 4
-        #label = tf.keras.layers.Input(shape=(self.label_shape,))
-        #image = tf.keras.layers.Input(shape=(self.image_shape,))
-        #label = tf.keras.layers.Input(shape=(label_shape,))
-        #image = tf.keras.layers.Input(shape=(image_shape,))
+
         label = tf.keras.layers.Input(shape=(label_shape,))
         image = tf.keras.layers.Input(shape=(image_shape,))
         real_image = tf.keras.layers.Input(shape=(image_shape,))
         fake_image = tf.keras.layers.Input(shape=(image_shape,))
 
+        combined_input_shape = label_shape + image_shape
+        combined_input = tf.keras.layers.Input(shape=(image_shape,))
+
         x = tf.keras.layers.Concatenate()([label, image])
-        #x = tf.keras.layers.Concatenate()([fake_image, real_image])
 
         model = build_sequential_model(self.config['discriminator_layers'])
         x = model(x)
@@ -468,8 +500,24 @@ class TF_CGAN(JDSTModel):
         output = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         discriminator = tf.keras.models.Model(
             inputs=[label, image], outputs=output)
-        #discriminator = tf.keras.models.Model(
-        #    inputs=images, outputs=output)
+        
+        return discriminator
+    
+    def build_static_discriminator(self):
+        label_shape = 1
+        image_shape = 4
+        label = tf.keras.layers.Input(shape=(label_shape,))
+        image = tf.keras.layers.Input(shape=(image_shape,))
+
+        x = tf.keras.layers.Concatenate()([label, image])
+
+        model = build_sequential_model(self.config['discriminator_layers'])
+        x = model(x)
+
+        output = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        discriminator = tf.keras.models.Model(
+            inputs=[label, image], outputs=output)
+
         return discriminator
 
     def get_info(self):
@@ -519,12 +567,13 @@ class TF_CGAN(JDSTModel):
         # Load network weights
         #self.generator.load_weights(os.path.join(filepath, 'generator.weights.h5'))
         self.static_generator.load_weights(os.path.join(filepath, 'generator.weights.h5'))
-        self.static_discriminator.load_weights(os.path.join(filepath, 'discriminator.weights.h5'))
+        #self.static_discriminator.load_weights(os.path.join(filepath, 'discriminator.weights.h5'))
+        #print("filepath: ", filepath)
 
         self.static_generator.trainable = False
         self.static_discriminator.trainable = False
 
-        self.cgan = TF_CGAN_Keras(self.discriminator, self.static_generator, 
+        self.cgan = TF_CGAN_Keras(self.static_discriminator, self.static_generator, 
                             noise_dim=self.config['latent_dim'], 
                             batch_size=self.config['batch_size'])
 
@@ -617,15 +666,21 @@ class TF_CGAN(JDSTModel):
         else:
             plt.savefig(os.path.join(path, 'model_history.png'))
 
-    def train(self, data, output_path, batches_per_epoch, target_distributions,
+    def train(self, input_data, output_path, batches_per_epoch, target_distributions,
               d_scaler, latent_dim, make_layer_grad_plots, grad_frequency, make_chi2_plots,
               chi2_frequency, make_disc_accuracy_plots, accuracy_frequency):
-        images, labels = data
+
+        if (self.config["gan_type"].lower() == "inner"):
+            detector_level_data, vertex_level_data_combined = input_data
+        elif (self.config["gan_type"].lower() == "outer"):
+            detector_level_data, (vertex_level_data, vertex_s) = input_data
+            vertex_level_data_combined = tf.concat([vertex_level_data, vertex_s], axis=1)
+
         tracker = BatchHistory()
         self.cgan.set_tracker(tracker)
 
         # Initialize gradient monitor
-        gradient_monitor = gm.GradientMonitor(self.cgan_model,
+        gradient_monitor = gm.GradientMonitor(self.cgan,
                                               output_path,
                                               grad_frequency,
                                               make_layer_grad_plots)
@@ -633,32 +688,46 @@ class TF_CGAN(JDSTModel):
 
         # Add "chi_square_monitor" to "callbacks_list" if set as "True" in config file
         if (make_chi2_plots):
-            #print("self.config[gan_type]: ", self.config["gan_type"].lower())
-            chi_square_monitor = gm.ChiSquareMonitor(self.cgan_model, labels,
-                                                 target_distributions, output_path,
-                                                 latent_dim, d_scaler, output_path,
-                                                 frequency=chi2_frequency, 
-                                                 gan_type=self.config["gan_type"].lower()
-                                                 )
+            if (self.config["gan_type"].lower() == "inner"):
+                data_for_chi2 = vertex_level_data_combined      
+                models_for_chi2 = self.cgan         
+            elif (self.config["gan_type"].lower() == "outer"):
+                data_for_chi2 = vertex_s
+                models_for_chi2 = (self.cgan, self.folding_model.cgan)
+
+            chi_square_monitor = gm.ChiSquareMonitor(models_for_chi2, data_for_chi2,
+                                        target_distributions, output_path,
+                                        latent_dim, d_scaler, output_path,
+                                        frequency=chi2_frequency, 
+                                        gan_type=self.config["gan_type"].lower()
+                                        )
+
             callbacks_list.append(chi_square_monitor)
 
         # Add "disc_acc_monitor" to "callbacks_list" if set as "True" in config file
         if (make_disc_accuracy_plots):
-            disc_acc_monitor = gm.AccuracyMonitor(self.cgan_model,
-                                                  output_path,
-                                                  frequency=accuracy_frequency,
-                                                  training_data=(labels, images),
-                                                  batch_size=self.batch_size,
-                                                  noise_dim=self.latent_dim,
-                                                  gan_type=self.config["gan_type"].lower()
-                                                  )
+            if (self.config["gan_type"].lower() == "inner"):
+                data_for_accuracy_test = vertex_level_data_combined     
+                models_for_accuracy_test = (self.cgan)      
+            elif (self.config["gan_type"].lower() == "outer"):
+                data_for_accuracy_test = vertex_s
+                models_for_accuracy_test = (self.cgan, self.folding_model.cgan)
+            disc_acc_monitor = gm.AccuracyMonitor(models_for_accuracy_test,
+                                        output_path,
+                                        frequency=accuracy_frequency,
+                                        training_data=(data_for_accuracy_test, detector_level_data),
+                                        batch_size=self.batch_size,
+                                        noise_dim=self.latent_dim,
+                                        gan_type=self.config["gan_type"].lower()
+                                        )
             callbacks_list.append(disc_acc_monitor)
 
         self.cgan.steps_per_epoch = batches_per_epoch
         self.cgan.k = grad_frequency
-        #print("labels: ", labels)
-        #print("images: ", images)
-        history = self.cgan.fit(labels, images,
+
+        #self.cgan.pretrain_outer_generator(labels, ps_labels, 10, 4096)
+
+        history = self.cgan.fit(vertex_level_data_combined, detector_level_data,
                                 batch_size = self.batch_size,
                                 epochs = self.epochs,
                                 callbacks=callbacks_list)
@@ -674,24 +743,20 @@ class TF_CGAN(JDSTModel):
         return history
 
     def predict(self, data):
-        noise = tf.random.normal(shape=(data.shape[0], self.latent_dim))
+        noise = tf.random.normal(shape=(data.shape[0], self.latent_dim))#, stddev=10)
         return self.generator.predict([data, noise], batch_size=1024)
 
     def predict_full(self, data):
-        v_s = data[:,4]
-        unf_gen_noise = tf.random.normal(shape=(v_s.shape[0], self.latent_dim))
-        unf_gen_output = self.generator.predict([v_s, unf_gen_noise], batch_size=1024)
+        unf_gen_noise = tf.random.normal(shape=(data.shape[0], self.latent_dim))
+        unf_gen_output = self.generator.predict([data, unf_gen_noise], batch_size=1024)
 
         inner_gen_noise = tf.random.normal(shape=(unf_gen_output.shape[0], self.latent_dim))
-        inner_generated_images = self.cgan.unfolding_model.static_generator.predict([unf_gen_output, inner_gen_noise], batch_size=1024)
-        #inner_generated_images = self.cgan.unfolding_model.static_generator([unf_gen_output, inner_gen_noise], training=False)
+        inner_generated_images = self.cgan.folding_model.static_generator.predict([unf_gen_output, inner_gen_noise], batch_size=1024)
 
         return inner_generated_images
     
     def predict_graph_mode(self, data):
         noise = tf.random.normal(shape=(tf.shape(data)[0], self.latent_dim))
-        #print("data: ", data)
-        #print("noise: ", noise)
         return self.static_generator([data, noise], training=False)
     
     

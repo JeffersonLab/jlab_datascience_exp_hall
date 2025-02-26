@@ -16,21 +16,22 @@ class TF_OuterGAN_V0(TF_CGAN_Keras):
 
     
     """
-    def __init__(self, unfolding_path, unfolding_id, discriminator, generator, noise_dim = 100, batch_size = 32) -> None:
+    def __init__(self, discriminator, generator, folding_model, noise_dim = 100, batch_size = 32) -> None:
         super().__init__(discriminator, generator, noise_dim = 100, batch_size = 32)
+        '''
+        self.folding_path = folding_path
+        self.folding_id = folding_id
 
-        self.unfolding_path = unfolding_path
-        self.unfolding_id = unfolding_id
+        with open(f"{self.folding_path}/config.yaml", "r") as f:
+            self.folding_config = yaml.safe_load(f)
 
-        with open(f"{self.unfolding_path}/config.yaml", "r") as f:
-            self.unfolding_config = yaml.safe_load(f)
-
-        self.unfolding_model = make(self.unfolding_id, config=self.unfolding_config)
-        self.unfolding_model.load_inner_GAN(self.unfolding_path)
+        self.folding_model = make(self.folding_id, config=self.folding_config)
+        self.folding_model.load_inner_GAN(self.folding_path)
 
         # This assumes InnerGAN is a TF_CGAN...
-        self.unfolding_model.cgan.trainable = False
-
+        self.folding_model.cgan.trainable = False
+        '''
+        self.folding_model = folding_model
         # Initialize loss and overall gradient trackers
         self.d_loss_tracker = tf.keras.metrics.Mean(name='d_loss')
         self.g_loss_tracker = tf.keras.metrics.Mean(name='g_loss')
@@ -70,85 +71,43 @@ class TF_OuterGAN_V0(TF_CGAN_Keras):
     
     def train_step(self, data):
         inputs, real_images = data
-        #real_images, inputs = data
-        #print("inputs: ", inputs)
-        #print("inputs.shape: ", inputs.shape)
         vertex_s = inputs[:,4]
-        #print("vertex_s: ", vertex_s)
-        #print("min(vertex_W): ", np.sqrt(np.min(vertex_s)))
-        #print("min(vertex_W): ", tf.reduce_min(vertex_s))
-        #print("min(vertex_W): ", tf.sqrt(tf.reduce_min(vertex_s)))
-        #print("max(vertex_W): ", max(vertex_s))
-        #inputs = inputs[:,:-1]
-        #real_images = real_images[:,:-1]
         inputs = inputs[:,:4]
-        real_images = real_images[:,:4]
-        #batch_size = tf.shape(inputs)[0]
         batch_size = tf.shape(vertex_s)[0]
         noise = tf.random.normal(shape=(batch_size, self.noise_dim))
 
-        #generated_images = self.generator((inputs, noise))
+        labels = tf.concat([tf.zeros((batch_size, 1)), tf.ones((batch_size, 1))], axis=0)
 
-        #generated_images = self.generator((vertex_s, noise))
-        
-        #zeros_column = tf.zeros((batch_size, 1), dtype=generated_images.dtype)
-        #generated_images_padded = tf.concat([generated_images, zeros_column], axis=1)
-        #generated_images = self.unfolding_model.predict_graph_mode(generated_images)
-
-        #inner_noise = tf.random.normal(shape=(tf.shape(generated_images)[0], self.unfolding_model.latent_dim))
-        #inner_generated_images = self.unfolding_model.static_generator([generated_images, inner_noise], training=False)
-
-        #dummy_noise = tf.zeros_like(noise)
-        #inner_generated_images = self.unfolding_model.static_generator([generated_images, dummy_noise], training=False)
-
-        #combined_images = tf.concat([generated_images, real_images], axis=0)
-
-        #combined_images = tf.concat([inner_generated_images, real_images], axis=0)
-        #combined_inputs = tf.concat([inputs, inputs], axis=0)
-
-        labels = tf.concat([tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))], axis=0)
-        #labels = tf.concat([tf.zeros((batch_size, 1)), tf.ones((batch_size, 1))], axis=0)
-        #print("labels.shape: ", labels.shape)
-
-        # Store the true labels for accuracy calculation before adding noise  
+        # Store the true labels for accuracy calculation before adding noise
         true_labels = labels
         
-        #labels += 0.05*tf.random.uniform(tf.shape(labels))
+        labels += 0.05*tf.random.uniform(tf.shape(labels))
 
-        disc_updates = 5
+        disc_updates = 1
         #Train discriminator 
         for _ in range(disc_updates):
             with tf.GradientTape(persistent=True) as disc_tape:
+
+                # Generate unfolding GAN generator output 
                 generated_images = self.generator((vertex_s, noise))
-                inner_noise = tf.random.normal(shape=(tf.shape(generated_images)[0], self.unfolding_model.latent_dim))
-                inner_generated_images = self.unfolding_model.static_generator([generated_images, inner_noise])#, training=False)
-                #print("inner_generated_images.shape: ", inner_generated_images.shape)
-                #print("real_images.shape: ", real_images.shape)
+
+                # Generate inner GAN generator output 
+                inner_noise = tf.random.normal(shape=(tf.shape(generated_images)[0], self.folding_model.latent_dim))
+                inner_generated_images = self.folding_model.static_generator([generated_images, inner_noise], training=False)
+
+                # Prepare training data
                 combined_images = tf.concat([inner_generated_images, real_images], axis=0)
-                #combined_images = tf.concat([generated_images, real_images], axis=0)
-                combined_inputs = tf.concat([inputs, inputs], axis=0)
-                predictions = self.discriminator((combined_inputs, combined_images))#, training=True)
-                #predictions = self.discriminator(combined_images, training=True)
+                combined_inputs = tf.concat([vertex_s, vertex_s], axis=0)
+
+                predictions = self.discriminator((combined_inputs, combined_images), training=True)
                 d_loss = self.d_loss_fn(labels, predictions)
             discriminator_gradients = disc_tape.gradient(d_loss, self.discriminator.trainable_weights)
             self.d_optimizer.apply_gradients(
                 zip(discriminator_gradients, self.discriminator.trainable_weights)
             )
-        #print("len(discriminator_gradients): ", len(discriminator_gradients))
-        '''
-        print("Discriminator trainable weights:")
-        for w in self.discriminator.trainable_weights:
-            print(w.name, w.shape)
-        print("Inner generator trainable weights:")
-        for sg in self.unfolding_model.static_generator.trainable_weights:
-            print(sg.name, sg.shape)
-        print("Generator trainable weights:")
-        for w in self.generator.trainable_weights:
-            print(w.name, w.shape)
-        '''
+
         # If using logits, apply sigmoid to get probabilities
         if isinstance(self.d_loss_fn, tf.keras.losses.BinaryCrossentropy) and not getattr(self.d_loss_fn, 'from_logits', False):
-            #print("No action needed")
             pass  # No action needed
         else:
             # Apply sigmoid if predictions are logits
@@ -165,44 +124,30 @@ class TF_OuterGAN_V0(TF_CGAN_Keras):
 
         # Calculate discriminator gradient norms
         discriminator_agg_gradient_norm = tf.sqrt(sum([tf.reduce_sum(tf.square(g)) for g in discriminator_gradients]))
-        #print("discriminator_agg_gradient_norm: ", discriminator_agg_gradient_norm)
 
         # Sample random points in the latent space
         random_latent_vectors = tf.random.normal(shape=(batch_size, self.noise_dim))
 
         # Assemble labels that say "all real images"
-        misleading_labels = tf.zeros((batch_size, 1))
-        #print("inner_generated_images: ", inner_generated_images)
-        # Train the generator (note that we should *not* update the weights
-        # of the discriminator)!
+        misleading_labels = tf.ones((batch_size, 1))
+
+        # Train the generator (note that we should *not* update the weights of the discriminator)!
         with tf.GradientTape() as gen_tape:
-            #generated_images = self.generator((inputs, random_latent_vectors))
-            generated_images = self.generator((vertex_s, random_latent_vectors))
-            #inner_generated_images = self.unfolding_model.predict_graph_mode(generated_images)
-            noise = tf.random.normal(shape=(tf.shape(generated_images)[0], self.unfolding_model.latent_dim))
-            inner_generated_images = self.unfolding_model.static_generator([generated_images, noise])#, training=False)
-            #tf.print("inner_generated_images: ", inner_generated_images)
-            #dummy_noise = tf.zeros_like(noise)
-            #inner_generated_images = self.unfolding_model.static_generator([generated_images, dummy_noise], training=False)
-            #predictions = self.discriminator((inputs, generated_images))#, training=False)
-            predictions = self.discriminator((inputs, inner_generated_images))#, training=False)
+            
+            # Generate unfolding GAN generator output 
+            generated_images = self.generator((vertex_s, random_latent_vectors), training=True)
+            
+            # Generate inner GAN generator output 
+            noise = tf.random.normal(shape=(tf.shape(generated_images)[0], self.folding_model.latent_dim))
+            inner_generated_images = self.folding_model.static_generator([generated_images, noise], training=False)
+            
+            # Generate unfolding GAN discriminator output
+            predictions = self.discriminator((vertex_s, inner_generated_images), training=False)
             g_loss = self.g_loss_fn(misleading_labels, predictions)      
+            
         generator_gradients = gen_tape.gradient(g_loss, self.generator.trainable_weights)
-        #for var, grad in zip(self.generator.trainable_weights, generator_gradients):
-        #    print(f"Variable: {var.name}, Gradient: {grad}")
         self.g_optimizer.apply_gradients(zip(generator_gradients, self.generator.trainable_weights))
-        #print("len(generator_gradients): ", len(generator_gradients))
-        '''
-        print("Discriminator trainable weights:")
-        for w in self.discriminator.trainable_weights:
-            print(w.name, w.shape)
-        print("Inner generator trainable weights:")
-        for sg in self.unfolding_model.static_generator.trainable_weights:
-            print(sg.name, sg.shape)
-        print("Generator trainable weights:")
-        for w in self.generator.trainable_weights:
-            print(w.name, w.shape)
-        '''
+
         gen_layer_grad_norms = []
         for idx, grad in enumerate(generator_gradients):
             norm = tf.norm(grad)
@@ -210,7 +155,6 @@ class TF_OuterGAN_V0(TF_CGAN_Keras):
 
         # Calculate generator gradient norms
         generator_agg_gradient_norm = tf.sqrt(sum([tf.reduce_sum(tf.square(g)) for g in generator_gradients]))
-        #print("generator_agg_gradient_norm: ", generator_agg_gradient_norm)
 
         # ----------------------------- Update tracked metrics ------------------------------- #
         self.d_loss_tracker.update_state(d_loss)
