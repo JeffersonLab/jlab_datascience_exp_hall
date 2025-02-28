@@ -11,12 +11,12 @@ import logging
 
 logging.getLogger("matplotlib").setLevel(logging.INFO)
 
-#hydra_basic_config
-#hydra_outer_config
+
+# hydra_basic_config
+# hydra_outer_config
 @hydra.main(
     version_base=None, config_path="../configs", config_name="hydra_outer_config"
 )
-
 def run(config):
     save_path = config.driver.save_path
 
@@ -30,7 +30,7 @@ def run(config):
         config=config["detector_parser"],
         name="detector_parser",
     )
-    '''
+    """
     detector_ps_parser = aidapt_toolkit.data_parsers.make(
         config["detector_ps_parser"]["id"],
         config=config["detector_ps_parser"],
@@ -41,7 +41,7 @@ def run(config):
         config=config["vertex_ps_parser"],
         name="vertex_ps_parser",
     )
-    '''
+    """
     lab2inv_prep = aidapt_toolkit.data_prep.make(
         config["lab2inv"]["id"],
         config=config["lab2inv"],
@@ -55,70 +55,80 @@ def run(config):
     v_s_scaler = aidapt_toolkit.data_prep.make(
         config["v_scaler"]["id"], config=config["v_scaler"], name="vertex_scaler"
     )
-    '''
+    """
     d_ps_scaler = aidapt_toolkit.data_prep.make(
         config["d_scaler"]["id"], config=config["d_scaler"], name="detector_scaler"
     )
     v_ps_scaler = aidapt_toolkit.data_prep.make(
         config["v_scaler"]["id"], config=config["v_scaler"], name="vertex_scaler"
     )
-    '''
+    """
     model = aidapt_toolkit.models.make(
         config["model"]["id"], config=config["model"], name="mlp_gan_model"
     )
 
     v_data = vertex_parser.load_data()
     d_data = detector_parser.load_data()
-    #v_ps_data = vertex_ps_parser.load_data()
-    #d_ps_data = detector_ps_parser.load_data()
+    # v_ps_data = vertex_ps_parser.load_data()
+    # d_ps_data = detector_ps_parser.load_data()
 
     v_invariants = lab2inv_prep.run(v_data)
     d_invariants = lab2inv_prep.run(d_data)
-    #v_ps_invariants = lab2inv_prep.run(v_ps_data)
-    #d_ps_invariants = lab2inv_prep.run(d_ps_data)
+    # v_ps_invariants = lab2inv_prep.run(v_ps_data)
+    # d_ps_invariants = lab2inv_prep.run(d_ps_data)
 
-    v_s_invariant = v_invariants[:,4]
+    v_s_invariant = v_invariants[:, 4]
     d_invariants = d_invariants[:, :-1]
     v_invariants = v_invariants[:, :-1]
-    #d_ps_invariants = d_ps_invariants[:, :-1]
-    #v_ps_invariants = v_ps_invariants[:, :-1]
+    # d_ps_invariants = d_ps_invariants[:, :-1]
+    # v_ps_invariants = v_ps_invariants[:, :-1]
 
     v_s_scaler.train(v_s_invariant)
     v_scaler.train(v_invariants)
     d_scaler.train(d_invariants)
-    #v_ps_scaler.train(v_ps_invariants)
-    #d_ps_scaler.train(d_ps_invariants)
+    # v_ps_scaler.train(v_ps_invariants)
+    # d_ps_scaler.train(d_ps_invariants)
 
     v_s_invariant_scaled = v_s_scaler.run(v_s_invariant)
     v_invariants_scaled = v_scaler.run(v_invariants)
     d_invariants_scaled = d_scaler.run(d_invariants)
-    #v_ps_invariants_scaled = v_ps_scaler.run(v_ps_invariants)
-    #d_ps_invariants_scaled = d_ps_scaler.run(d_ps_invariants)
+    # v_ps_invariants_scaled = v_ps_scaler.run(v_ps_invariants)
+    # d_ps_invariants_scaled = d_ps_scaler.run(d_ps_invariants)
 
     # Scale (based on phase space data!)
-        # These are completely different files... Do we want to load them and calculate
-        # the mean and standard deviation or do we want to just have them in the config?
-        # We can do the latter to start
+    # These are completely different files... Do we want to load them and calculate
+    # the mean and standard deviation or do we want to just have them in the config?
+    # We can do the latter to start
 
-    batches_per_epoch = len(d_invariants_scaled) // config['model']['batch_size']
-    batches_per_epoch_remainder = len(d_invariants_scaled) % config['model']['batch_size']
-    
+    batches_per_epoch = len(d_invariants_scaled) // config["model"]["batch_size"]
+    batches_per_epoch_remainder = (
+        len(d_invariants_scaled) % config["model"]["batch_size"]
+    )
+
     if batches_per_epoch_remainder > 0:
         batches_per_epoch += 1
-        
+
     # Train the model
-    history = model.train([d_invariants_scaled, [v_invariants_scaled, v_s_invariant_scaled]],
-                    save_path, batches_per_epoch, d_invariants_scaled, d_scaler,
-                    config['model']['latent_dim'],
-                    config['metrics']['layer_specific_gradients'], config['metrics']['grad_frequency'],
-                    config['metrics']['chi2'], config['metrics']['chi2_frequency'],
-                    config['metrics']['disc_accuracy'], config['metrics']['acc_frequency'])
-    
+    history = model.train(
+        [d_invariants_scaled, [v_invariants_scaled, v_s_invariant_scaled]],
+        save_path,
+        batches_per_epoch,
+        d_invariants_scaled,
+        d_scaler,
+        config["model"]["latent_dim"],
+        config["metrics"]["layer_specific_gradients"],
+        config["metrics"]["grad_frequency"],
+        config["metrics"]["chi2"],
+        config["metrics"]["chi2_frequency"],
+        config["metrics"]["disc_accuracy"],
+        config["metrics"]["acc_frequency"],
+    )
+
     d_results_scaled = model.predict_full(v_s_invariant_scaled)
-    unf_results_scaled = model.predict(v_s_invariant_scaled)
+    # unf_results_scaled = model.predict(v_s_invariant_scaled)
     d_results = d_scaler.reverse(d_results_scaled)
-    unf_results = d_scaler.reverse(unf_results_scaled)
-    
+    # unf_results = d_scaler.reverse(unf_results_scaled)
+
     # Plot distributions
     fig, axs = plt.subplots(2, 2)
     axs = axs.flat
@@ -141,7 +151,7 @@ def run(config):
             label="Detector",
         )
         ax.set_xlabel(name)
-        '''
+        """
         ax.hist(
             unf_results[:, i],
             bins=100,
@@ -150,12 +160,12 @@ def run(config):
             density=True,
             label="Unf_GAN",
         )
-        '''
+        """
         ax.set_xlabel(name)
     ax.legend()
     fig.tight_layout()
     fig.savefig(os.path.join(save_path, "distributions.png"))
-    '''
+    """
     fig, axs = plt.subplots(2, 2)
     axs = axs.flat
     output_names = ("sppim", "spipm", "tpip", "alpha")
@@ -205,7 +215,7 @@ def run(config):
     ax.legend()
     fig.tight_layout()
     fig.savefig(os.path.join(save_path, "distributions_before_training.png"))
-    '''
+    """
     # Plot reconstruction errors
     fig, ax = plt.subplots(1, 1)
     p_rec_gan = np.sqrt(
@@ -238,7 +248,7 @@ def run(config):
         loc="upper left",
     )
     fig.savefig(os.path.join(save_path, "reconstruction_errors.png"))
-    
+
     # Save modules
     vertex_parser.save(os.path.join(save_path, "vertex_parser"))
     detector_parser.save(os.path.join(save_path, "detector_parser"))
@@ -246,10 +256,11 @@ def run(config):
     d_scaler.save(os.path.join(save_path, "d_scaler"))
     v_scaler.save(os.path.join(save_path, "v_scaler"))
     model.save(os.path.join(save_path, "cgan_model"))
-    #pass
+    # pass
+
 
 if __name__ == "__main__":
     # Parse arguments using argparse
     # Load config
-    #run(config = {})
+    # run(config = {})
     run()

@@ -8,11 +8,11 @@ from omegaconf import OmegaConf
 import yaml
 import inspect
 
-aidapt_lab2invariants_log = logging.getLogger('AIDAPT Lab2Invariants Logger')
+aidapt_lab2invariants_log = logging.getLogger("AIDAPT Lab2Invariants Logger")
 
 
 class LabVariablesToInvariants(JDSTDataPrep):
-    """Converts a numpy array of size (n,16) and converts it to invariants 
+    """Converts a numpy array of size (n,16) and converts it to invariants
     used by AIDAPT models
 
     Required intialization arguments: `config: dict`, `name: str`
@@ -49,36 +49,36 @@ class LabVariablesToInvariants(JDSTDataPrep):
 
     """
 
-    def __init__(self, config: dict, name: str = 'AIDAPT Lab2Invariants'):
+    def __init__(self, config: dict, name: str = "AIDAPT Lab2Invariants"):
         self.module_name = name
         self.required_config_keys = []
         verify_config(config, self.required_config_keys)
         self.config = config
 
         # Constants used in lab_to_com and lab_to_inv
-        if 'MP' not in self.config:
-            self.config['MP'] = 0.93827
+        if "MP" not in self.config:
+            self.config["MP"] = 0.93827
 
     def get_info(self):
         print(inspect.getdoc(self))
 
     def load_config(self, path):
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             config = yaml.safe_load(f)
         verify_config(config, self.required_config_keys)
         self.config = config
 
     def save_config(self, path):
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             OmegaConf.save(self.config, f)
-            #yaml.safe_dump(self.config, f)
+            # yaml.safe_dump(self.config, f)
 
     def load(self, path):
-        aidapt_lab2invariants_log.debug('Nothing to load...')
+        aidapt_lab2invariants_log.debug("Nothing to load...")
         pass
 
     def save(self, path):
-        aidapt_lab2invariants_log.debug('Nothing to save...')
+        aidapt_lab2invariants_log.debug("Nothing to save...")
         pass
 
     def save_data(self):
@@ -92,27 +92,29 @@ class LabVariablesToInvariants(JDSTDataPrep):
         return output
 
     def reverse(self, data):
-        warn_string = f'{self.module_name} currently cannot be reversed. ' \
-            'Returning original data.'
+        warn_string = (
+            f"{self.module_name} currently cannot be reversed. "
+            "Returning original data."
+        )
         aidapt_lab2invariants_log.warning(warn_string)
         return data
 
     def _lab_to_com(self, plab, s):
         output = plab.copy()
-        MP = self.config['MP']
-        c1 = (MP**2 + s)/(2*MP*np.sqrt(s))
-        c2 = (MP**2 - s)/(2*MP*np.sqrt(s))
-        output[:, 0] = c1*plab[:, 0] + c2*plab[:, 3]
-        output[:, 3] = c2*plab[:, 0] + c1*plab[:, 3]
+        MP = self.config["MP"]
+        c1 = (MP**2 + s) / (2 * MP * np.sqrt(s))
+        c2 = (MP**2 - s) / (2 * MP * np.sqrt(s))
+        output[:, 0] = c1 * plab[:, 0] + c2 * plab[:, 3]
+        output[:, 3] = c2 * plab[:, 0] + c1 * plab[:, 3]
         return output
 
     def _lab_to_inv(self, data):
-        """ Take lab data and transform to physical invariants
+        """Take lab data and transform to physical invariants
 
         Args:
             data (np.ndarray): Input data (either vertex or detector)
 
-        Returns: 
+        Returns:
             (np.ndarray): Data array containing:
 
                 sppim: square of (recoil proton + pi-)
@@ -120,7 +122,7 @@ class LabVariablesToInvariants(JDSTDataPrep):
                 tpip:  square of (photon - pi+)
                 alpha: ???
                 s:     square of (photon + target proton)
-                
+
                 phi:   azimuth of pi+ (value not used, so removed)
                 MX:    Missing mass of the pi- (value not used, so removed)
         """
@@ -139,15 +141,14 @@ class LabVariablesToInvariants(JDSTDataPrep):
         beam[:, 0] = nu
         beam[:, 3] = nu
         target = np.zeros((N, 4))
-        target[:, 0] = self.config['MP']
+        target[:, 0] = self.config["MP"]
 
-        s = four_vector_dot(beam+target, beam+target)
-        sppim = four_vector_dot(recoil_proton+pi_minus, recoil_proton+pi_minus)
-        spipm = four_vector_dot(pi_plus+pi_minus, pi_plus+pi_minus)
-        tpip = four_vector_dot(pi_plus-beam, pi_plus-beam)
+        s = four_vector_dot(beam + target, beam + target)
+        sppim = four_vector_dot(recoil_proton + pi_minus, recoil_proton + pi_minus)
+        spipm = four_vector_dot(pi_plus + pi_minus, pi_plus + pi_minus)
+        tpip = four_vector_dot(pi_plus - beam, pi_plus - beam)
 
         # alpha = np.zeros(N)
-        alpha = get_alpha(self._lab_to_com(pi_plus, s),
-                          self._lab_to_com(pi_minus, s))
+        alpha = get_alpha(self._lab_to_com(pi_plus, s), self._lab_to_com(pi_minus, s))
 
         return np.stack([sppim, spipm, tpip, alpha, s], axis=1)

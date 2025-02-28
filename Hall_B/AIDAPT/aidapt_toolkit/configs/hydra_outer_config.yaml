@@ -10,23 +10,24 @@ detector_parser:
   - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_1.npy
   - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_2.npy
   - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_3.npy
-detector_rec_parser:
-  id: aidapt_numpy_reader_v0
-  filepaths:
-  - ./aidapt_toolkit/data/ps_detector/ps_detector_0.npy
-  - ./aidapt_toolkit/data/ps_detector/ps_detector_1.npy
-  - ./aidapt_toolkit/data/ps_detector/ps_detector_2.npy
-  - ./aidapt_toolkit/data/ps_detector/ps_detector_3.npy
 lab2inv: 
   id: lab_variables_to_invariants
   MP: 0.93827
 model:
   id: tf_outer_cgan_v0
-  unfolding_id: tf_cgan_v0
-  unfolding_path: ./outputs/trained_inner_gan_models/2024-12-05/cgan_model
+  folding_id: tf_cgan_v0
+  folding_path: ./outputs/trained_inner_gan_models/2024-12-05/cgan_model
   gan_type: outer
-  batch_size: 2048
+  batch_size: 10000
   discriminator_layers:
+  - - Dense
+    - units: 1024
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - Dense
+    - units: 512
+  - - LeakyReLU
+    - negative_slope: 0.2
   - - Dense
     - units: 256
   - - LeakyReLU
@@ -39,13 +40,21 @@ model:
     - units: 64
   - - LeakyReLU
     - negative_slope: 0.2
+  - - Dense
+    - units: 32
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - Dense
+    - units: 16
+  - - LeakyReLU
+    - negative_slope: 0.2
   discriminator_optimizer:
   - Adam
   - beta_1: 0.5
     learning_rate: 1.0e-05
   discriminator_loss: 'BinaryCrossentropy'
   #discriminator_loss: 'MeanSquaredError'
-  epochs: 200000
+  epochs: 10000
   generator_layers:
   - - Dense
     - units: 16
@@ -95,8 +104,12 @@ model:
     learning_rate: 1.0e-05
   generator_loss: 'BinaryCrossentropy'
   #generator_loss: 'MeanSquaredError'
-  image_shape: 1
-  label_shape: 4
+  #inner_image_shape: 4
+  #inner_label_shape: 4
+  #outer_image_shape: 4
+  #outer_label_shape: 1
+  image_shape: 4
+  label_shape: 1
   latent_dim: 100
 v_scaler:
   id: numpy_minmax_scaler
@@ -112,8 +125,8 @@ driver:
   save_path: ${hydra:runtime.output_dir}
 metrics:
   layer_specific_gradients: True
-  grad_frequency: 400
+  grad_frequency: 100
   chi2: True
-  chi2_frequency: 800
+  chi2_frequency: 200
   disc_accuracy: True
-  acc_frequency: 400
+  acc_frequency: 200

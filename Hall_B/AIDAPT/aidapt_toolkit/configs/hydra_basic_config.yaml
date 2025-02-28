@@ -15,6 +15,7 @@ lab2inv:
   MP: 0.93827
 model:
   id: tf_cgan_v0
+  gan_type: inner
   batch_size: 10000
   discriminator_layers:
   - - Dense
@@ -34,7 +35,7 @@ model:
   - beta_1: 0.5
     learning_rate: 1.0e-05
   discriminator_loss: 'BinaryCrossentropy'
-  epochs: 80000
+  epochs: 40000
   generator_layers:
   - - Dense
     - units: 128
@@ -60,7 +61,7 @@ model:
     learning_rate: 1.0e-05
   generator_loss: 'BinaryCrossentropy'
   image_shape: 4
-  label_shape: 5
+  label_shape: 4
   latent_dim: 100
 v_scaler:
   id: numpy_minmax_scaler
@@ -76,8 +77,8 @@ driver:
   save_path: ${hydra:runtime.output_dir}
 metrics:
   layer_specific_gradients: True
-  grad_frequency: 100
+  grad_frequency: 200
   chi2: True
-  chi2_frequency: 2000
+  chi2_frequency: 400
   disc_accuracy: True
-  acc_frequency: 500
+  acc_frequency: 400
