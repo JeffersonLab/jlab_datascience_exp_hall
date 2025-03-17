@@ -12,9 +12,9 @@ import yaml
 import os
 import copy
 
+
 # Use to force running in eager mode
 # tf.config.run_functions_eagerly(True)
-
 
 def get_optimizer(type: str = "Adam", optimizer_config: dict = None):
     """Gets a non-legacy Optimizer instance
@@ -65,7 +65,6 @@ def get_optimizer(type: str = "Adam", optimizer_config: dict = None):
     return tf.keras.optimizers.deserialize(
         dict(class_name=type, module=module, config=optimizer_config)
     )
-
 
 def get_layer(type: str = "Dense", layer_config: dict = None):
     """Gets a non-legacy Layer instance
@@ -133,6 +132,7 @@ class TF_CGAN_Keras(tf.keras.Model):
         self.noise_dim = noise_dim
         self.d_loss_tracker = tf.keras.metrics.Mean(name="d_loss")
         self.g_loss_tracker = tf.keras.metrics.Mean(name="g_loss")
+
         self.discriminator_gradient_norm_tracker = tf.keras.metrics.Mean(
             name="discriminator_gradient_norm"
         )
@@ -363,13 +363,12 @@ class TF_CGAN_Keras(tf.keras.Model):
             "generator_gradient_norm": self.generator_gradient_norm_tracker.result(),
         }
 
-    """
-    def call(self, inputs):
-        batch_size = tf.shape(inputs)[0]
-        noise = tf.random.normal(shape=(batch_size, self.noise_dim))
-        generated_images = self.generator([inputs, noise])  # Generator forward pass
-        return generated_images
-    """
+        # If you want to track average losses over an epoch, instead of per batch,
+        # use this return call.
+        # return {
+        #     "d_loss": self.d_loss_tracker.result(),
+        #     "g_loss": self.g_loss_tracker.result(),
+        # }
 
 
 class TF_CGAN(JDSTModel):
@@ -428,7 +427,6 @@ class TF_CGAN(JDSTModel):
 
         self.generator_optimizer = get_optimizer(*self.config["generator_optimizer"])
 
-        # TODO: Make this configurable in the config
         self.gen_loss_fn = self.get_loss_function(self.config["generator_loss"])
         self.disc_loss_fn = self.get_loss_function(self.config["discriminator_loss"])
 
@@ -436,11 +434,6 @@ class TF_CGAN(JDSTModel):
 
         self.discriminator = self.build_discriminator()
         self.generator = self.build_generator()
-        # self.static_discriminator = self.build_static_discriminator()
-
-        # self.cgan = TF_CGAN_Keras(self.discriminator, self.generator,
-        #                        noise_dim=self.config['latent_dim'],
-        #                        batch_size=self.config['batch_size'])
 
         if self.config["gan_type"].lower() == "inner":
             self.cgan = TF_CGAN_Keras(
@@ -493,13 +486,6 @@ class TF_CGAN(JDSTModel):
             self.gen_loss_fn,
         )
 
-        # self.cgan_model = TF_CGAN_Keras(self.discriminator, self.generator)
-
-        # self.discriminator.compile(loss='mse',
-        #                            optimizer=self.discriminator_optimizer,
-        #                            metrics=['accuracy'])
-        # self.generator.compile(loss='mse', optimizer=self.generator_optimizer)
-
     def get_loss_function(self, loss_name):
         # Get the loss function from tf.keras.losses by name
         try:
@@ -511,20 +497,12 @@ class TF_CGAN(JDSTModel):
 
     def set_model_variables(self):
         self.latent_dim = self.config[f"latent_dim"]
-        self.inner_generator_layers = self.config[f"inner_generator_layers"]
         self.generator_layers = self.config[f"generator_layers"]
         self.discriminator_layers = self.config[f"discriminator_layers"]
         self.batch_size = self.config[f"batch_size"]
         self.epochs = self.config[f"epochs"]
         self.image_shape = self.config[f"image_shape"]
         self.label_shape = self.config[f"label_shape"]
-        # self.inner_image_shape = self.config[f'inner_image_shape']
-        # self.inner_label_shape = self.config[f'inner_label_shape']
-
-        # if (self.config["gan_type"].lower() == "outer"):
-        #    self.outer_image_shape = self.config[f'outer_image_shape']
-        #    self.outer_label_shape = self.config[f'outer_label_shape']
-
         self.disc_loss_fn = self.config[f"discriminator_loss"]
         self.gen_loss_fn = self.config[f"generator_loss"]
 
@@ -545,16 +523,8 @@ class TF_CGAN(JDSTModel):
         return generator
 
     def build_generator(self):
-        # label_shape = 1
-        # image_shape = 4
         label_shape = self.config["label_shape"]
         image_shape = self.config["image_shape"]
-        # if (self.config["gan_type"].lower() == "inner"):
-        #    label_shape = self.inner_label_shape
-        #    image_shape = self.inner_image_shape
-        # elif (self.config["gan_type"].lower() == "outer"):
-        #    label_shape = self.outer_label_shape
-        #    image_shape = self.outer_image_shape
 
         label = tf.keras.layers.Input(shape=(label_shape,))
         noise = tf.keras.layers.Input(shape=(self.latent_dim,))
@@ -571,21 +541,11 @@ class TF_CGAN(JDSTModel):
         return generator
 
     def build_discriminator(self):
-        # label_shape = 1
-        # image_shape = 4
         label_shape = self.config["label_shape"]
         image_shape = self.config["image_shape"]
-        # if (self.config["gan_type"].lower() == "inner"):
-        #    label_shape = self.inner_label_shape
-        #    image_shape = self.inner_image_shape
-        # if (self.config["gan_type"].lower() == "outer"):
-        #    label_shape = self.outer_label_shape
-        #    image_shape = self.outer_image_shape
         label = tf.keras.layers.Input(shape=(label_shape,))
         image = tf.keras.layers.Input(shape=(image_shape,))
-        # real_image = tf.keras.layers.Input(shape=(image_shape,))
-        # fake_image = tf.keras.layers.Input(shape=(image_shape,))
-
+ 
         combined_input_shape = label_shape + image_shape
         combined_input = tf.keras.layers.Input(shape=(image_shape,))
 
@@ -600,8 +560,6 @@ class TF_CGAN(JDSTModel):
         return discriminator
 
     def build_static_discriminator(self):
-        # label_shape = 1
-        # image_shape = 4
         label_shape = self.config["label_shape"]
         image_shape = self.config["image_shape"]
 
@@ -677,7 +635,6 @@ class TF_CGAN(JDSTModel):
             os.path.join(filepath, "generator.weights.h5")
         )
         # self.static_discriminator.load_weights(os.path.join(filepath, 'discriminator.weights.h5'))
-        # print("filepath: ", filepath)
 
         self.static_generator.trainable = False
         self.static_discriminator.trainable = False
@@ -685,6 +642,7 @@ class TF_CGAN(JDSTModel):
         self.cgan = TF_CGAN_Keras(
             self.static_discriminator,
             self.static_generator,
+
             noise_dim=self.config["latent_dim"],
             batch_size=self.config["batch_size"],
         )

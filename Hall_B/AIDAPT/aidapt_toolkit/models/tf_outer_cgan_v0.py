@@ -19,19 +19,7 @@ class TF_OuterGAN_V0(TF_CGAN_Keras):
         self, discriminator, generator, folding_model, noise_dim=100, batch_size=32
     ) -> None:
         super().__init__(discriminator, generator, noise_dim=100, batch_size=32)
-        """
-        self.folding_path = folding_path
-        self.folding_id = folding_id
 
-        with open(f"{self.folding_path}/config.yaml", "r") as f:
-            self.folding_config = yaml.safe_load(f)
-
-        self.folding_model = make(self.folding_id, config=self.folding_config)
-        self.folding_model.load_inner_GAN(self.folding_path)
-
-        # This assumes InnerGAN is a TF_CGAN...
-        self.folding_model.cgan.trainable = False
-        """
         self.folding_model = folding_model
         # Initialize loss and overall gradient trackers
         self.d_loss_tracker = tf.keras.metrics.Mean(name="d_loss")

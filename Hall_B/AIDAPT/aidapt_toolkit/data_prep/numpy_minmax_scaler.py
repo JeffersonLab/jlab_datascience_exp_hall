@@ -71,7 +71,6 @@ class NumpyMinMaxScaler(JDSTDataPrep):
         data_zero_one = (x - self.feature_range[0]) / (
             self.feature_range[1] - self.feature_range[0]
         )
-        # data_unscaled = data_zero_one * self.data_range[:-1] + self.data_min[:-1]
         data_unscaled = data_zero_one * self.data_range + self.data_min
         return data_unscaled
 
