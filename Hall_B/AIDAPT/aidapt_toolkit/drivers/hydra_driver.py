@@ -187,8 +187,9 @@ def run(config) -> None:
     vertex_parser.save(os.path.join(save_path, "vertex_parser"))
     detector_parser.save(os.path.join(save_path, "detector_parser"))
     lab2inv_prep.save(os.path.join(save_path, "lab2inv_prep"))
-    # d_scaler.save(os.path.join(save_path, "d_scaler"))
-    # v_scaler.save(os.path.join(save_path, "v_scaler"))
+    d_scaler.save(os.path.join(save_path, "d_scaler"))
+    v_scaler.save(os.path.join(save_path, "v_scaler"))
+    v_s_scaler.save(os.path.join(save_path, "v_s_scaler"))
     model.save(os.path.join(save_path, "cgan_model"))
 
 
