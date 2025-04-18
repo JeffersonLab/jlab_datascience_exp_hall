@@ -40,7 +40,7 @@ def run(config) -> None:
         config["v_scaler"]["id"], config=config["v_scaler"], name="vertex_scaler"
     )
     v_s_scaler = aidapt_toolkit.data_prep.make(
-        config["v_scaler"]["id"], config=config["v_scaler"], name="vertex_scaler"
+        config["v_scaler"]["id"], config=config["v_scaler"], name="vertex_s_scaler"
     )
     model = aidapt_toolkit.models.make(
         config["model"]["id"], config=config["model"], name="mlp_gan_model"
