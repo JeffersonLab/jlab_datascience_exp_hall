@@ -6,19 +6,28 @@ d_scaler:
 detector_parser:
   id: aidapt_numpy_reader_v0
   filepaths:
-  - ./data/realistic_detector/realistic_detector_0.npy
-  - ./data/realistic_detector/realistic_detector_1.npy
-  - ./data/realistic_detector/realistic_detector_2.npy
-  - ./data/realistic_detector/realistic_detector_3.npy
+  - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_0.npy
+  - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_1.npy
+  - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_2.npy
+  - ./aidapt_toolkit/data/Realistic_detector/realistic_detector_3.npy
 lab2inv: 
   id: lab_variables_to_invariants
   MP: 0.93827
 model:
   id: tf_outer_cgan_v0
-  unfolding_id: tf_cgan_v0
-  unfolding_path: ./innerGAN_model
-  batch_size: 4096
+  folding_id: tf_cgan_v0
+  folding_path: ./outputs/trained_inner_gan_models/2024-12-05/cgan_model
+  gan_type: outer
+  batch_size: 10000
   discriminator_layers:
+  - - Dense
+    - units: 1024
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - Dense
+    - units: 512
+  - - LeakyReLU
+    - negative_slope: 0.2
   - - Dense
     - units: 256
   - - LeakyReLU
@@ -29,14 +38,36 @@ model:
     - negative_slope: 0.2
   - - Dense
     - units: 64
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - Dense
+    - units: 32
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - Dense
+    - units: 16
   - - LeakyReLU
     - negative_slope: 0.2
   discriminator_optimizer:
   - Adam
   - beta_1: 0.5
     learning_rate: 1.0e-05
-  epochs: 2
+  discriminator_loss: 'BinaryCrossentropy'
+  #discriminator_loss: 'MeanSquaredError'
+  epochs: 10000
   generator_layers:
+  - - Dense
+    - units: 16
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - BatchNormalization
+    - momentum: 0.8
+  - - Dense
+    - units: 32
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - BatchNormalization
+    - momentum: 0.8
   - - Dense
     - units: 64
   - - LeakyReLU
@@ -51,6 +82,18 @@ model:
     - momentum: 0.8
   - - Dense
     - units: 256
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - BatchNormalization
+    - momentum: 0.8
+  - - Dense
+    - units: 512
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - BatchNormalization
+    - momentum: 0.8
+  - - Dense
+    - units: 1024
   - - LeakyReLU
     - negative_slope: 0.2
   - - BatchNormalization
@@ -58,9 +101,15 @@ model:
   generator_optimizer:
   - Adam
   - beta_1: 0.5
-    learning_rate: 5.0e-05
+    learning_rate: 1.0e-05
+  generator_loss: 'BinaryCrossentropy'
+  #generator_loss: 'MeanSquaredError'
+  #inner_image_shape: 4
+  #inner_label_shape: 4
+  #outer_image_shape: 4
+  #outer_label_shape: 1
   image_shape: 4
-  label_shape: 5
+  label_shape: 1
   latent_dim: 100
 v_scaler:
   id: numpy_minmax_scaler
@@ -68,9 +117,16 @@ v_scaler:
 vertex_parser:
   id: aidapt_numpy_reader_v0
   filepaths:
-  - ./data/realistic_vertex/realistic_vertex_0.npy
-  - ./data/realistic_vertex/realistic_vertex_1.npy
-  - ./data/realistic_vertex/realistic_vertex_2.npy
-  - ./data/realistic_vertex/realistic_vertex_3.npy
+  - ./aidapt_toolkit/data/Realistic_vertex/realistic_vertex_0.npy
+  - ./aidapt_toolkit/data/Realistic_vertex/realistic_vertex_1.npy
+  - ./aidapt_toolkit/data/Realistic_vertex/realistic_vertex_2.npy
+  - ./aidapt_toolkit/data/Realistic_vertex/realistic_vertex_3.npy
 driver:
   save_path: ${hydra:runtime.output_dir}
+metrics:
+  layer_specific_gradients: True
+  grad_frequency: 100
+  chi2: True
+  chi2_frequency: 200
+  disc_accuracy: True
+  acc_frequency: 200

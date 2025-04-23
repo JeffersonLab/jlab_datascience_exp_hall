@@ -43,6 +43,7 @@ class NumpyMinMaxScaler(JDSTDataPrep):
 
     def train(self, data: np.ndarray):
         x = data
+
         if data.ndim == 1:
             x = x[:, np.newaxis]
 
@@ -57,7 +58,6 @@ class NumpyMinMaxScaler(JDSTDataPrep):
         x = data
         if data.ndim == 1:
             x = x[:, np.newaxis]
-
         data_zero_one = (x - self.data_min) / self.data_range
         data_scaled = data_zero_one * (self.feature_range[1] - self.feature_range[0])
         data_scaled = data_scaled + self.feature_range[0]

@@ -6,16 +6,17 @@ d_scaler:
 detector_parser:
   id: aidapt_numpy_reader_v0
   filepaths:
-  - ./data/ps_detector/ps_detector_0.npy
-  - ./data/ps_detector/ps_detector_1.npy
-  - ./data/ps_detector/ps_detector_2.npy
-  - ./data/ps_detector/ps_detector_3.npy
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_0.npy
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_1.npy
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_2.npy
+  - ./aidapt_toolkit/data/ps_detector/ps_detector_3.npy
 lab2inv: 
   id: lab_variables_to_invariants
   MP: 0.93827
 model:
   id: tf_cgan_v0
-  batch_size: 4096
+  gan_type: inner
+  batch_size: 10000
   discriminator_layers:
   - - Dense
     - units: 256
@@ -33,14 +34,9 @@ model:
   - Adam
   - beta_1: 0.5
     learning_rate: 1.0e-05
-  epochs: 2
+  discriminator_loss: 'BinaryCrossentropy'
+  epochs: 40000
   generator_layers:
-  - - Dense
-    - units: 64
-  - - LeakyReLU
-    - negative_slope: 0.2
-  - - BatchNormalization
-    - momentum: 0.8
   - - Dense
     - units: 128
   - - LeakyReLU
@@ -53,12 +49,19 @@ model:
     - negative_slope: 0.2
   - - BatchNormalization
     - momentum: 0.8
+  - - Dense
+    - units: 512
+  - - LeakyReLU
+    - negative_slope: 0.2
+  - - BatchNormalization
+    - momentum: 0.8
   generator_optimizer:
   - Adam
   - beta_1: 0.5
-    learning_rate: 5.0e-05
+    learning_rate: 1.0e-05
+  generator_loss: 'BinaryCrossentropy'
   image_shape: 4
-  label_shape: 5
+  label_shape: 4
   latent_dim: 100
 v_scaler:
   id: numpy_minmax_scaler
@@ -66,9 +69,16 @@ v_scaler:
 vertex_parser:
   id: aidapt_numpy_reader_v0
   filepaths:
-  - ./data/ps_vertex/ps_vertex_0.npy
-  - ./data/ps_vertex/ps_vertex_1.npy
-  - ./data/ps_vertex/ps_vertex_2.npy
-  - ./data/ps_vertex/ps_vertex_3.npy
+  - ./aidapt_toolkit/data/ps_vertex/ps_vertex_0.npy
+  - ./aidapt_toolkit/data/ps_vertex/ps_vertex_1.npy
+  - ./aidapt_toolkit/data/ps_vertex/ps_vertex_2.npy
+  - ./aidapt_toolkit/data/ps_vertex/ps_vertex_3.npy
 driver:
   save_path: ${hydra:runtime.output_dir}
+metrics:
+  layer_specific_gradients: True
+  grad_frequency: 200
+  chi2: True
+  chi2_frequency: 400
+  disc_accuracy: True
+  acc_frequency: 400
